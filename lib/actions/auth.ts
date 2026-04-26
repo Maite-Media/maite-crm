@@ -65,15 +65,17 @@ export async function registerWithInvitation(
     return { success: false, error: authError?.message ?? 'Error al crear usuario' }
   }
 
-  // Create the profile
+  // Wait for trigger to create profile, then update it
+  await new Promise(resolve => setTimeout(resolve, 1000))
+
   const { error: profileError } = await supabase
     .from('profiles')
-    .insert({
-      id: authData.user.id,
-      email: invitation.email,
+    .update({
       full_name: fullName,
       role: invitation.role,
+      email: invitation.email,
     })
+    .eq('id', authData.user.id)
 
   console.log('[registerWithInvitation] profileError:', JSON.stringify(profileError))
 
