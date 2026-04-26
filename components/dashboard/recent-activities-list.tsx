@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { Activity, ActivityType } from '@/lib/actions/activities'
 import { User } from 'lucide-react'
@@ -34,16 +35,16 @@ function formatRelativeTime(dateString: string): string {
 }
 
 export function RecentActivitiesList({ activities }: RecentActivitiesListProps) {
-  function getEntityLabel(activity: Activity): string | null {
+  function getEntityInfo(activity: Activity): { label: string; href: string } | null {
     if (activity.contact_id && activity.contacts) {
       const name = `${activity.contacts.first_name}${activity.contacts.last_name ? ` ${activity.contacts.last_name}` : ''}`
-      return name
+      return { label: name, href: `/leads?open=${activity.contact_id}` }
     }
     if (activity.company_id && activity.companies) {
-      return activity.companies.name
+      return { label: activity.companies.name, href: `/companies?open=${activity.company_id}` }
     }
     if (activity.opportunity_id && activity.opportunities) {
-      return activity.opportunities.title
+      return { label: activity.opportunities.title, href: `/pipeline?open=${activity.opportunity_id}` }
     }
     return null
   }
@@ -63,7 +64,7 @@ export function RecentActivitiesList({ activities }: RecentActivitiesListProps) 
             {activities.map((activity) => {
               const userName = activity.profiles?.full_name
               const isSystem = !userName || activity.type === 'system'
-              const entityLabel = getEntityLabel(activity)
+              const entityInfo = getEntityInfo(activity)
 
               return (
                 <li key={activity.id} className="flex gap-3 text-sm">
@@ -71,12 +72,21 @@ export function RecentActivitiesList({ activities }: RecentActivitiesListProps) 
                     {activityIcons[activity.type] || '📌'}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-foreground">{activity.description}</p>
+                    <p className="text-foreground">
+                      {activity.type === 'note' ? (
+                        <span>Nota: <span className="font-normal">{activity.description}</span></span>
+                      ) : (
+                        activity.description
+                      )}
+                    </p>
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
-                      {entityLabel && (
-                        <span className="text-xs font-medium text-[#E31E24] bg-[#E31E24]/10 px-1.5 py-0.5 rounded">
-                          {entityLabel}
-                        </span>
+                      {entityInfo && (
+                        <Link
+                          href={entityInfo.href}
+                          className="text-xs font-medium text-[#E31E24] bg-[#E31E24]/10 hover:bg-[#E31E24]/20 px-1.5 py-0.5 rounded transition-colors"
+                        >
+                          {entityInfo.label}
+                        </Link>
                       )}
                       {isSystem ? (
                         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

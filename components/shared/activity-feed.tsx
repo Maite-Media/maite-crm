@@ -3,7 +3,6 @@
 import { useState, useTransition } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { createActivity } from '@/lib/actions/activities'
 import type { Activity, ActivityType } from '@/lib/actions/activities'
 
@@ -69,16 +68,20 @@ export function ActivityFeed({
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleAddNote} className="flex gap-2">
-        <Input
+      <form onSubmit={handleAddNote} className="space-y-2">
+        <textarea
           placeholder="Agregar nota..."
           value={note}
           onChange={(e) => setNote(e.target.value)}
           disabled={isPending}
+          rows={2}
+          className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm resize-none"
         />
-        <Button type="submit" size="sm" disabled={isPending || !note.trim()}>
-          {isPending ? '...' : 'Agregar'}
-        </Button>
+        <div className="flex justify-end">
+          <Button type="submit" size="sm" disabled={isPending || !note.trim()}>
+            {isPending ? '...' : 'Agregar nota'}
+          </Button>
+        </div>
       </form>
 
       <div className="space-y-3">
@@ -91,7 +94,13 @@ export function ActivityFeed({
             <div key={activity.id} className="flex gap-3 text-sm">
               <span className="text-lg">{activityIcons[activity.type] || '📌'}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-foreground">{activity.description}</p>
+                <p className="text-foreground">
+                  {activity.type === 'note' ? (
+                    <span>Nota: <span className="font-normal">{activity.description}</span></span>
+                  ) : (
+                    activity.description
+                  )}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {activity.profiles?.full_name || 'Sistema'} • {formatRelativeTime(activity.created_at)}
                 </p>

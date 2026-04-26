@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +35,7 @@ function formatDate(dateString: string): string {
 }
 
 export function TeamManager() {
+  const router = useRouter()
   const [members, setMembers] = useState<TeamMember[]>([])
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [isPending, startTransition] = useTransition()
@@ -44,17 +46,20 @@ export function TeamManager() {
   const [inviteResult, setInviteResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // Load data on mount
-  useState(() => {
+  useEffect(() => {
     startTransition(async () => {
+      console.log('[TeamManager] Loading team data...')
       const [membersResult, invitationsResult] = await Promise.all([
         getTeamMembers(),
         getInvitations(),
       ])
+      console.log('[TeamManager] membersResult:', membersResult.success, membersResult.data?.length)
+      console.log('[TeamManager] invitationsResult:', invitationsResult.success, invitationsResult.data?.length)
       if (membersResult.success) setMembers(membersResult.data ?? [])
       if (invitationsResult.success) setInvitations(invitationsResult.data ?? [])
       setIsLoading(false)
     })
-  })
+  }, [])
 
   function handleRoleChange(memberId: string, newRole: UserRole) {
     startTransition(async () => {
