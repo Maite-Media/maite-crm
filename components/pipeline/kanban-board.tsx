@@ -141,6 +141,7 @@ interface SortableOpportunityCardProps {
   opportunity: OpportunityWithRelations
   stage: PipelineStage
   onClick: () => void
+  isDragging?: boolean
 }
 
 const SortableOpportunityCard = React.memo(function SortableOpportunityCard({ opportunity, stage, onClick }: SortableOpportunityCardProps) {
