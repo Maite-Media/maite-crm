@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { StatusBadge } from './status-badge'
@@ -62,14 +62,14 @@ export function CompanyDetailPanel({
 
   if (isEditing) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Editar Empresa</SheetTitle>
-            <SheetDescription>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Empresa</DialogTitle>
+            <DialogDescription>
               Actualiza los datos de la empresa
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="mt-6">
             <CompanyForm
               company={company}
@@ -80,18 +80,18 @@ export function CompanyDetailPanel({
               onCancel={() => setIsEditing(false)}
             />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     )
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-4 border-b">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader className="pb-4 border-b">
           <div className="flex items-start justify-between">
             <div>
-              <SheetTitle className="text-xl">{company.name}</SheetTitle>
+              <DialogTitle className="text-xl">{company.name}</DialogTitle>
               {company.industry && (
                 <p className="text-sm text-muted-foreground mt-1">
                   {company.industry}
@@ -100,7 +100,7 @@ export function CompanyDetailPanel({
             </div>
             <StatusBadge status={company.status} />
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         <Tabs defaultValue="detail" className="mt-4">
           <TabsList className="w-full">
@@ -169,23 +169,6 @@ export function CompanyDetailPanel({
                 <p className="text-sm">Responsable: {company.profiles.full_name}</p>
               )}
             </div>
-
-            <div className="flex gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setIsEditing(true)}
-                disabled={isPending}
-              >
-                Editar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={isPending}
-              >
-                {isPending ? 'Eliminando...' : 'Eliminar'}
-              </Button>
-            </div>
           </TabsContent>
 
           <TabsContent value="contacts" className="mt-4">
@@ -226,7 +209,24 @@ export function CompanyDetailPanel({
             />
           </TabsContent>
         </Tabs>
-      </SheetContent>
-    </Sheet>
+
+        <DialogFooter className="flex gap-2 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => setIsEditing(true)}
+            disabled={isPending}
+          >
+            Editar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={isPending}
+          >
+            {isPending ? 'Eliminando...' : 'Eliminar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

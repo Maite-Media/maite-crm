@@ -57,12 +57,11 @@ export async function getDashboardMetrics(userId?: string) {
   }
 }
 
-export async function getRecentTasks(userId: string, limit = 5) {
+export async function getRecentTasks(userId: string, limit = 8) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('tasks')
     .select('*, contacts(first_name, last_name), companies(name), opportunities(title), profiles!tasks_assigned_to_fkey(full_name)')
-    .eq('assigned_to', userId)
     .in('status', ['pending', 'in_progress'])
     .order('due_date', { ascending: true })
     .limit(limit)
