@@ -1,6 +1,9 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { Resend } from 'resend'
+
+const resend = new Resend(process.env.RESEND_API_KEY)
 
 export type UserRole = 'admin' | 'commercial' | 'production' | 'viewer'
 
@@ -105,6 +108,22 @@ export async function inviteUser(email: string, role: UserRole): Promise<{ succe
     .single()
 
   if (error) return { success: false, error: error.message }
+
+  // Send invitation email
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://maite-crm.vercel.app'
+  const registerUrl = `${baseUrl}/register?token=${data.token}`
+  try {
+    await resend.emails.send({
+      from: 'MAITE CRM <formulario@agenciamaitemedia.com>',
+      to: email,
+      subject: 'Te invitaron al CRM de Maite Media',
+      html: `<p>Hola,</p><p>Fuiste invitado a unirte al CRM de Maite Media.</p><p>Hacé click en el siguiente link para crear tu cuenta:</p><a href="${registerUrl}">${registerUrl}</a><p>Este link vence en 7 días.</p><p>Si no esperabas esta invitación, ignorá este mensaje.</p>`,
+    })
+  } catch (emailError) {
+    console.error('[inviteUser] Failed to send email:', emailError)
+    // Email failure doesn't void the invitation
+  }
+
   return { success: true, data: { token: data.token } }
 }
 

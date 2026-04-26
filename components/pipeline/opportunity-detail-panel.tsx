@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -60,21 +60,20 @@ export function OpportunityDetailPanel({
 
   function handleDelete() {
     if (!confirm('¿Estás seguro de eliminar esta oportunidad?')) return
-    // Would call deleteOpportunity here - not implemented yet
     onDeleted?.()
     onOpenChange(false)
   }
 
   if (isEditing) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Editar Oportunidad</SheetTitle>
-            <SheetDescription>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Oportunidad</DialogTitle>
+            <DialogDescription>
               Actualiza los datos de la oportunidad
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
           <div className="mt-6">
             <OpportunityForm
               opportunity={opportunity}
@@ -89,17 +88,17 @@ export function OpportunityDetailPanel({
               onCancel={() => setIsEditing(false)}
             />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     )
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-md overflow-y-auto">
-        <SheetHeader className="pb-4 border-b">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pb-4 border-b">
           <div className="flex items-start justify-between gap-2">
-            <SheetTitle className="text-xl">{opportunity.title}</SheetTitle>
+            <DialogTitle className="text-xl">{opportunity.title}</DialogTitle>
             {opportunity.pipeline_stages && (
               <Badge
                 style={{ backgroundColor: opportunity.pipeline_stages.color + '20', color: opportunity.pipeline_stages.color }}
@@ -113,7 +112,7 @@ export function OpportunityDetailPanel({
               {opportunity.companies.name}
             </p>
           )}
-        </SheetHeader>
+        </DialogHeader>
 
         <Tabs defaultValue="detail" className="mt-4">
           <TabsList className="w-full">
@@ -182,7 +181,7 @@ export function OpportunityDetailPanel({
               />
             </div>
 
-            <div className="flex gap-2 pt-4">
+            <DialogFooter className="flex gap-2 pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => setIsEditing(true)}
@@ -197,7 +196,7 @@ export function OpportunityDetailPanel({
               >
                 {isPending ? 'Eliminando...' : 'Eliminar'}
               </Button>
-            </div>
+            </DialogFooter>
           </TabsContent>
 
           <TabsContent value="activity" className="mt-4">
@@ -231,7 +230,7 @@ export function OpportunityDetailPanel({
             )}
           </TabsContent>
         </Tabs>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
