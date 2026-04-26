@@ -5,6 +5,7 @@ import { getPipelineStages } from '@/lib/actions/pipeline-config'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { ServicesManager } from '@/components/settings/services-manager'
 import { PipelineManager } from '@/components/settings/pipeline-manager'
+import { TeamManager } from '@/components/settings/team-manager'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { UsersIcon } from 'lucide-react'
@@ -72,22 +73,7 @@ export default async function SettingsPage() {
 
         {isAdmin && (
           <TabsContent value="team" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Equipo</CardTitle>
-                <CardDescription>
-                  Gestión de usuarios y roles (próximamente)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <UsersIcon className="size-12 text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    La gestión de equipo estará disponible pronto
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <TeamManager />
           </TabsContent>
         )}
       </Tabs>

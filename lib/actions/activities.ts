@@ -50,7 +50,7 @@ export async function getActivitiesByContact(contactId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('activities')
-    .select('*, profiles(full_name)')
+    .select('*, profiles!activities_created_by_fkey(full_name)')
     .eq('contact_id', contactId)
     .order('created_at', { ascending: false })
   if (error) return { success: false, error: error.message }
@@ -61,7 +61,7 @@ export async function getActivitiesByOpportunity(opportunityId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('activities')
-    .select('*, profiles(full_name)')
+    .select('*, profiles!activities_created_by_fkey(full_name)')
     .eq('opportunity_id', opportunityId)
     .order('created_at', { ascending: false })
   if (error) return { success: false, error: error.message }
@@ -72,7 +72,7 @@ export async function getActivitiesByCompany(companyId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('activities')
-    .select('*, profiles(full_name)')
+    .select('*, profiles!activities_created_by_fkey(full_name)')
     .eq('company_id', companyId)
     .order('created_at', { ascending: false })
   if (error) return { success: false, error: error.message }

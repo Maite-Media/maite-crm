@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { ActivityFeed } from '@/components/shared/activity-feed'
 import { OpportunityForm } from './opportunity-form'
+import { ProposalButton } from './proposal-button'
 import { updateOpportunity } from '@/lib/actions/opportunities'
 import { getActivitiesByOpportunity } from '@/lib/actions/activities'
 import { getTasksByOpportunity } from '@/lib/actions/tasks'
@@ -172,6 +173,13 @@ export function OpportunityDetailPanel({
               {opportunity.profiles && (
                 <p className="text-sm">Responsable: {opportunity.profiles.full_name}</p>
               )}
+            </div>
+
+            <div className="pt-2">
+              <ProposalButton
+                opportunityId={opportunity.id}
+                companyName={opportunity.companies?.name}
+              />
             </div>
 
             <div className="flex gap-2 pt-4">
