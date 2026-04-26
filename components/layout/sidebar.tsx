@@ -50,9 +50,9 @@ function SidebarDesktop({ user }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 border-r bg-[#0A0A0A]">
+    <aside className="hidden lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 lg:border-r lg:bg-[#0A0A0A] lg:z-30 lg:flex lg:flex-col">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10 shrink-0">
         <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#E31E24] text-white">
           <span className="text-sm font-bold">M</span>
         </div>
@@ -60,7 +60,7 @@ function SidebarDesktop({ user }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
@@ -84,7 +84,7 @@ function SidebarDesktop({ user }: SidebarProps) {
 
       {/* User */}
       {user && (
-        <div className="px-3 py-4 border-t border-white/10 flex items-center gap-3">
+        <div className="px-3 py-4 border-t border-white/10 flex items-center gap-3 shrink-0">
           <div className="w-8 h-8 rounded-full bg-[#E31E24] text-white flex items-center justify-center text-sm font-medium shrink-0">
             {user.full_name?.[0]?.toUpperCase() ?? "U"}
           </div>

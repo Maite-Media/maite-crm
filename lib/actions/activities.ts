@@ -23,6 +23,9 @@ export type Activity = {
   created_by: string
   created_at: string
   profiles?: { full_name: string }
+  contacts?: { first_name: string; last_name: string | null } | null
+  companies?: { name: string } | null
+  opportunities?: { title: string } | null
 }
 
 export async function createActivity(data: {
@@ -83,7 +86,7 @@ export async function getRecentActivities(limit = 10) {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('activities')
-    .select('*, profiles(full_name), contacts(first_name, last_name), companies(name)')
+    .select('*, profiles!activities_created_by_fkey(full_name), contacts:contact_id(first_name, last_name), companies:company_id(name), opportunities:opportunity_id(title)')
     .order('created_at', { ascending: false })
     .limit(limit)
   if (error) return { success: false, error: error.message }

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useState, useTransition, useCallback, useRef, useEffect } from 'react'
 import { Search, Bell } from 'lucide-react'
 import { Input } from '@/components/ui/input'
@@ -52,6 +52,7 @@ function buildBreadcrumbs(pathname: string): BreadcrumbItem[] {
 
 export function Topbar() {
   const pathname = usePathname()
+  const router = useRouter()
   const breadcrumbs = buildBreadcrumbs(pathname)
 
   const [query, setQuery] = useState('')
@@ -95,11 +96,12 @@ export function Topbar() {
     }, 400)
   }, [])
 
-  function handleResultClick(href: string) {
+  function handleResultClick(href: string, id?: string) {
     setQuery('')
     setResults(null)
     setShowDropdown(false)
-    window.location.href = href
+    const url = id ? `${href}?open=${id}` : href
+    router.push(url)
   }
 
   const hasResults = results && (
@@ -158,7 +160,7 @@ export function Topbar() {
                       {results!.leads.map((lead) => (
                         <button
                           key={lead.id}
-                          onClick={() => handleResultClick(`/leads`)}
+                          onClick={() => handleResultClick('/leads', lead.id)}
                           className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                         >
                           {lead.first_name} {lead.last_name ?? ''}
@@ -175,7 +177,7 @@ export function Topbar() {
                       {results!.empresas.map((company) => (
                         <button
                           key={company.id}
-                          onClick={() => handleResultClick(`/companies`)}
+                          onClick={() => handleResultClick('/companies', company.id)}
                           className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                         >
                           {company.name}
@@ -192,7 +194,7 @@ export function Topbar() {
                       {results!.oportunidades.map((opp) => (
                         <button
                           key={opp.id}
-                          onClick={() => handleResultClick(`/pipeline`)}
+                          onClick={() => handleResultClick('/pipeline', opp.id)}
                           className="w-full text-left px-3 py-2 hover:bg-accent text-sm"
                         >
                           {opp.title}
