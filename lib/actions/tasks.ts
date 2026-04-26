@@ -75,11 +75,9 @@ export async function updateTask(id: string, data: Partial<Task>) {
 export async function deleteTask(id: string) {
   const supabase = await createClient()
   const { error } = await supabase.from('tasks').delete().eq('id', id)
-if (error) return { success: false, error: error.message }
-  console.log('[completeTask] error:', JSON.stringify(error))
-  console.log('[completeTask] result:', JSON.stringify(task))
+  if (error) return { success: false, error: error.message }
   revalidatePath('/tasks')
-  return { success: true, data: task }
+  return { success: true }
 }
 
 export async function completeTask(id: string) {

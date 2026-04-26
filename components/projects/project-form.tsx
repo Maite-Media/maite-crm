@@ -182,7 +182,7 @@ export function ProjectForm({
           <select
             id="status"
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => setStatus(e.target.value as typeof status)}
             className="h-9 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm"
             disabled={isPending}
           >

@@ -522,7 +522,6 @@ const OpportunityDetailSheet = React.memo(function OpportunityDetailSheet({
     prevProps.opportunity.stage_id === nextProps.opportunity.stage_id &&
     prevProps.opportunity.estimated_value === nextProps.opportunity.estimated_value &&
     prevProps.opportunity.close_probability === nextProps.opportunity.close_probability &&
-    prevProps.opportunity.services === nextProps.opportunity.services &&
-    prevProps.isEditing === nextProps.isEditing
+    prevProps.opportunity.services === nextProps.opportunity.services
   )
 })

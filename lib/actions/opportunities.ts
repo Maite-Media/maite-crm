@@ -255,7 +255,7 @@ export async function getOpportunitiesByStage() {
           servicesMap[os.opportunity_id] = []
         }
         if (os.services) {
-          servicesMap[os.opportunity_id].push(os.services)
+          servicesMap[os.opportunity_id].push(...(Array.isArray(os.services) ? os.services : [os.services]))
         }
       }
     }

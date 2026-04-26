@@ -141,10 +141,10 @@ export function OpportunityDetailPanel({
                   <p className="text-sm">{formatDate(opportunity.expected_close_date)}</p>
                 </div>
               )}
-              {opportunity.services && (
+              {opportunity.services && opportunity.services.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground">Servicio</p>
-                  <p className="text-sm">{opportunity.services.name}</p>
+                  <p className="text-sm">{opportunity.services.map(s => s.name).join(', ')}</p>
                 </div>
               )}
             </div>
