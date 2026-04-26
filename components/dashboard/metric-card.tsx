@@ -13,17 +13,17 @@ interface MetricCardProps {
 }
 
 const ICON_COLORS: Record<string, string> = {
-  blue: 'text-blue-600 bg-blue-50',
-  orange: 'text-orange-600 bg-orange-50',
-  red: 'text-red-600 bg-red-50',
-  green: 'text-green-600 bg-green-50',
+  blue: 'text-[#E31E24] bg-[#E31E24]/10',
+  orange: 'text-[#E31E24] bg-[#E31E24]/10',
+  red: 'text-[#E31E24] bg-[#E31E24]/10',
+  green: 'text-[#E31E24] bg-[#E31E24]/10',
 }
 
 export function MetricCard({ title, value, icon: Icon, iconColor = 'blue', trend }: MetricCardProps) {
   const colorClass = ICON_COLORS[iconColor] || ICON_COLORS.blue
 
   return (
-    <Card>
+    <Card className="border-l-4 border-l-[#E31E24]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -35,7 +35,7 @@ export function MetricCard({ title, value, icon: Icon, iconColor = 'blue', trend
         </div>
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
+        <div className="text-3xl font-bold text-[#0A0A0A]">{value}</div>
         {trend && (
           <p className={`text-xs mt-1 ${trend.isPositive ? 'text-green-600' : 'text-red-600'}`}>
             {trend.isPositive ? '↑' : '↓'} {Math.abs(trend.value)}%

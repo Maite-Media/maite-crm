@@ -50,13 +50,13 @@ function SidebarDesktop({ user }: SidebarProps) {
   const pathname = usePathname()
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 border-r bg-background">
+    <aside className="hidden lg:flex flex-col w-64 border-r bg-[#0A0A0A]">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
+        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#E31E24] text-white">
           <span className="text-sm font-bold">M</span>
         </div>
-        <span className="font-semibold text-foreground">MAITE CRM</span>
+        <span className="font-bold text-white">MAITE CRM</span>
       </div>
 
       {/* Navigation */}
@@ -71,8 +71,8 @@ function SidebarDesktop({ user }: SidebarProps) {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-[#E31E24] text-white font-medium"
+                  : "text-gray-300 hover:bg-[#E31E24]/20 hover:text-white"
               }`}
             >
               <Icon className="size-4" />
@@ -84,16 +84,16 @@ function SidebarDesktop({ user }: SidebarProps) {
 
       {/* User */}
       {user && (
-        <div className="px-3 py-4 border-t flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium shrink-0">
+        <div className="px-3 py-4 border-t border-white/10 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-[#E31E24] text-white flex items-center justify-center text-sm font-medium shrink-0">
             {user.full_name?.[0]?.toUpperCase() ?? "U"}
           </div>
           <div className="flex flex-col flex-1 min-w-0">
-            <span className="text-sm font-medium truncate">{user.full_name || "Usuario"}</span>
-            <span className="text-xs text-muted-foreground capitalize">{user.role || "viewer"}</span>
+            <span className="text-sm font-medium truncate text-gray-300">{user.full_name || "Usuario"}</span>
+            <span className="text-xs text-gray-400 capitalize">{user.role || "viewer"}</span>
           </div>
           <form action="/api/auth/signout" method="post">
-            <button type="submit" className="text-muted-foreground hover:text-foreground">
+            <button type="submit" className="text-gray-400 hover:text-red-400">
               <LogOut className="h-4 w-4" />
             </button>
           </form>
