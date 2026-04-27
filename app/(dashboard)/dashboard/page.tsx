@@ -81,33 +81,34 @@ async function DashboardCharts() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Ingresos - 2/3 del ancho */}
-      <div className="lg:col-span-2 bg-background border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="lg:col-span-2 bg-background border border-border/60 rounded-xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm font-semibold">Evolución de ingresos</p>
-            <p className="text-xs text-muted-foreground">Oportunidades ganadas — últimos 6 meses</p>
+            <p className="text-sm font-semibold tracking-tight">Evolución de ingresos</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Oportunidades ganadas — últimos 6 meses</p>
           </div>
-          <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">₲</span>
+          <span className="text-xs bg-[#E31E24]/10 text-[#E31E24] px-2.5 py-1 rounded-full font-bold tracking-wide">₲ GS</span>
         </div>
         <MiniBarChart data={revenue} />
       </div>
 
       {/* Leads por fuente - 1/3 */}
-      <div className="bg-background border rounded-xl p-4">
+      <div className="bg-background border border-border/60 rounded-xl p-5 shadow-sm">
         <div className="mb-3">
-          <p className="text-sm font-semibold">Leads por fuente</p>
-          <p className="text-xs text-muted-foreground">Origen de contactos</p>
+          <p className="text-sm font-semibold tracking-tight">Leads por fuente</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Origen de contactos</p>
         </div>
         <DonutSource data={sources} />
       </div>
 
       {/* Funnel - ancho completo */}
-      <div className="lg:col-span-3 bg-background border rounded-xl p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="lg:col-span-3 bg-background border border-border/60 rounded-xl p-5 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <p className="text-sm font-semibold">Funnel de conversión</p>
-            <p className="text-xs text-muted-foreground">Oportunidades por etapa del pipeline</p>
+            <p className="text-sm font-semibold tracking-tight">Funnel de conversión</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Oportunidades por etapa — tasa de conversión entre etapas</p>
           </div>
+          <span className="text-xs text-muted-foreground font-medium">← conteo / conv% →</span>
         </div>
         <HorizontalFunnel data={funnel} />
       </div>
