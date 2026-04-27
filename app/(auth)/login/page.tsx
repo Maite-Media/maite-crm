@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -91,6 +92,15 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? 'Ingresando...' : 'Iniciar sesión'}
           </Button>
+
+          <div className="text-center text-sm">
+            <Link
+              href="/forgot-password"
+              className="text-muted-foreground hover:text-foreground underline"
+            >
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>
