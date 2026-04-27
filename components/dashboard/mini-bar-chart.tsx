@@ -23,37 +23,40 @@ export function MiniBarChart({ data, color = '#E31E24' }: MiniBarChartProps) {
   const maxVal = Math.max(...data.map(d => d.value), 1)
   return (
     <ResponsiveContainer width="100%" height={210}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }} barCategoryGap="30%">
-        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }} barCategoryGap="32%">
+        <CartesianGrid strokeDasharray="1 4" stroke="#1e1e1e" vertical={false} />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 11, fill: '#6b7280', fontWeight: 500 }}
+          tick={{ fontSize: 10, fill: '#52525b', fontFamily: 'monospace', letterSpacing: '0.05em' }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
           tickFormatter={formatAxisValue}
-          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          tick={{ fontSize: 9, fill: '#3f3f46', fontFamily: 'monospace' }}
           axisLine={false}
           tickLine={false}
-          width={52}
+          width={54}
         />
         <Tooltip
           formatter={(value) => [formatTooltipValue(value as number), 'Ingresos']}
           contentStyle={{
-            background: '#fff',
-            border: '1px solid #e5e7eb',
-            borderRadius: '10px',
-            fontSize: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+            background: '#111',
+            border: '1px solid rgba(227,30,36,0.3)',
+            borderRadius: '2px',
+            fontSize: '11px',
+            fontFamily: 'monospace',
+            color: '#fff',
+            boxShadow: '0 0 20px rgba(227,30,36,0.1)',
           }}
-          cursor={{ fill: 'rgba(0,0,0,0.03)' }}
+          cursor={{ fill: 'rgba(227,30,36,0.04)' }}
         />
-        <Bar dataKey="value" radius={[5, 5, 0, 0]}>
+        <Bar dataKey="value" radius={[2, 2, 0, 0]}>
           {data.map((entry, index) => (
             <Cell
               key={index}
-              fill={entry.value === maxVal && maxVal > 0 ? color : `${color}55`}
+              fill={entry.value === maxVal && maxVal > 0 ? color : `${color}40`}
+              style={entry.value === maxVal && maxVal > 0 ? { filter: `drop-shadow(0 0 6px ${color}88)` } : undefined}
             />
           ))}
         </Bar>
