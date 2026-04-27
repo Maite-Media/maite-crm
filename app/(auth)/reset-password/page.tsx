@@ -1,158 +1,120 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useEffect, useState, useTransition, Suspense } from 'react'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { AlertCircle, Loader2 } from 'lucide-react'
 
 function ResetPasswordForm() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const supabase = createClient()
-
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
+  const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const [isReady, setIsReady] = useState(false)
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    // Supabase procesa el hash automáticamente y establece la sesión
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsReady(true)
+      }
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-
+    const formData = new FormData(e.currentTarget)
+    const password = formData.get('password') as string
+    const confirmPassword = formData.get('confirmPassword') as string
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres')
       return
     }
-
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden')
       return
     }
-
-    setLoading(true)
-
-    const { error } = await supabase.auth.updateUser({
-      password,
+    startTransition(async () => {
+      const { error } = await supabase.auth.updateUser({ password })
+      if (error) {
+        setError(error.message)
+      } else {
+        setSuccess(true)
+        setTimeout(() => router.push('/login'), 2000)
+      }
     })
+  }
 
-    if (error) {
-      setError(error.message)
-      setLoading(false)
-      return
-    }
-
-    setSuccess(true)
-    setLoading(false)
+  if (!isReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center">
+            <Loader2 className="size-6 animate-spin mx-auto mb-2" />
+            <p className="text-muted-foreground">Verificando link...</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   if (success) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Contraseña actualizada</CardTitle>
-          <CardDescription>
-            Tu contraseña fue изменена exitosamente
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 p-3 text-sm text-green-700 bg-green-50 rounded-md border border-green-200 mb-4">
-            <CheckCircle className="size-4" />
-            <span>Ya podés iniciar sesión con tu nueva contraseña</span>
-          </div>
-          <Link href="/login">
-            <Button className="w-full">
-              Ir al login
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardContent className="py-8 text-center">
+            <p className="text-green-600 font-medium">¡Contraseña actualizada!</p>
+            <p className="text-muted-foreground text-sm mt-1">Redirigiendo al login...</p>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-md border border-red-200">
-          <AlertCircle className="size-4" />
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label htmlFor="password">Nueva contraseña</Label>
-        <Input
-          id="password"
-          type="password"
-          placeholder="Mínimo 6 caracteres"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={6}
-          disabled={loading}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
-        <Input
-          id="confirmPassword"
-          type="password"
-          placeholder="Repetí la nueva contraseña"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          required
-          minLength={6}
-          disabled={loading}
-        />
-      </div>
-
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            Guardando...
-          </>
-        ) : (
-          'Guardar nueva contraseña'
-        )}
-      </Button>
-
-      <div className="text-center text-sm">
-        <Link href="/login" className="text-muted-foreground hover:text-foreground">
-          Volver al login
-        </Link>
-      </div>
-    </form>
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Nueva contraseña</CardTitle>
+          <CardDescription>Ingresá tu nueva contraseña</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="password">Nueva contraseña</Label>
+              <Input id="password" name="password" type="password" required minLength={6} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirmar contraseña</Label>
+              <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} />
+            </div>
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <AlertCircle className="size-4" />
+                {error}
+              </div>
+            )}
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? <Loader2 className="size-4 animate-spin" /> : 'Guardar nueva contraseña'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={
-      <Card>
-        <CardContent className="py-8 text-center">
-          <Loader2 className="size-6 animate-spin mx-auto mb-2" />
-          <p className="text-muted-foreground">Cargando...</p>
-        </CardContent>
-      </Card>
-    }>
-      <Card>
-        <CardHeader>
-          <CardTitle>Nueva contraseña</CardTitle>
-          <CardDescription>
-            Ingresá tu nueva contraseña
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResetPasswordForm />
-        </CardContent>
-      </Card>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="size-6 animate-spin" /></div>}>
+      <ResetPasswordForm />
     </Suspense>
   )
 }
