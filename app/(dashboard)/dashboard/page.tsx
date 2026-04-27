@@ -1,198 +1,160 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
-import { getDashboardMetrics, getRecentTasks, getRecentActivities, getPipelineSummary } from '@/lib/actions/dashboard'
+import { getDashboardMetrics, getRecentTasks, getRecentActivities } from '@/lib/actions/dashboard'
 import { getRevenueByMonth, getOpportunitiesByStageCount, getLeadsBySource } from '@/lib/actions/dashboard-charts'
-import { MetricCard } from '@/components/dashboard/metric-card'
+import { StatCard } from '@/components/dashboard/stat-card'
+import { MiniBarChart } from '@/components/dashboard/mini-bar-chart'
+import { HorizontalFunnel } from '@/components/dashboard/horizontal-funnel'
+import { DonutSource } from '@/components/dashboard/donut-source'
 import { RecentTasksList } from '@/components/dashboard/recent-tasks-list'
 import { RecentActivitiesList } from '@/components/dashboard/recent-activities-list'
 import { PipelineSummaryCard } from '@/components/dashboard/pipeline-summary-card'
-import { RevenueChart } from '@/components/dashboard/revenue-chart'
-import { FunnelChart } from '@/components/dashboard/funnel-chart'
-import { LeadsSourceChart } from '@/components/dashboard/leads-source-chart'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Users, Target, CheckSquare, Coins } from 'lucide-react'
+import { Users, Target, CheckSquare, TrendingUp } from 'lucide-react'
 import { businessConfig } from '@/config/business-config'
 
 function formatCurrency(value: number): string {
-  return `${businessConfig.currencySymbol}${value.toLocaleString('es-PY')}`
+  if (value >= 1000000) return `₲${(value / 1000000).toFixed(1)}M`
+  if (value >= 1000) return `₲${(value / 1000).toFixed(0)}K`
+  return `₲${value}`
 }
 
-async function DashboardMetrics() {
-  const { data: metrics } = await getDashboardMetrics()
-  const metricsData = metrics || { newLeads: 0, activeOpportunities: 0, estimatedRevenue: 0, pendingTasks: 0 }
+function LoadingCard() {
+  return <div className="bg-background border rounded-xl p-4 animate-pulse h-24" />
+}
+
+function LoadingChart() {
+  return <div className="bg-background border rounded-xl p-4 animate-pulse h-48" />
+}
+
+async function DashboardStats() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const result = await getDashboardMetrics(user?.id)
+  const data = result.data ?? { newLeads: 0, activeOpportunities: 0, pendingTasks: 0, estimatedRevenue: 0 }
+  const userId = user?.id ?? ''
 
   return (
-    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-      <MetricCard
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <StatCard
         title="Leads nuevos (7 días)"
-        value={metricsData.newLeads}
+        value={String(data.newLeads)}
         icon={Users}
-        iconColor="blue"
+        iconBg="bg-blue-50"
+        iconColor="text-blue-600"
+        subtitle="Últimos 7 días"
       />
-      <MetricCard
+      <StatCard
         title="Oportunidades activas"
-        value={metricsData.activeOpportunities}
+        value={String(data.activeOpportunities)}
         icon={Target}
-        iconColor="orange"
+        iconBg="bg-orange-50"
+        iconColor="text-orange-600"
+        subtitle="En pipeline"
       />
-      <MetricCard
+      <StatCard
         title="Tareas pendientes"
-        value={metricsData.pendingTasks}
+        value={String(data.pendingTasks)}
         icon={CheckSquare}
-        iconColor="red"
+        iconBg="bg-red-50"
+        iconColor="text-red-600"
+        subtitle="Sin completar"
       />
-      <MetricCard
+      <StatCard
         title="Valor pipeline"
-        value={formatCurrency(metricsData.estimatedRevenue)}
-        icon={Coins}
-        iconColor="green"
+        value={formatCurrency(data.estimatedRevenue)}
+        icon={TrendingUp}
+        iconBg="bg-green-50"
+        iconColor="text-green-600"
+        subtitle="Oportunidades activas"
       />
     </div>
   )
 }
 
-async function DashboardPipelineSummary() {
-  const { data: summary } = await getPipelineSummary()
-  return <PipelineSummaryCard stages={summary || []} />
+async function DashboardCharts() {
+  const [revenue, funnel, sources] = await Promise.all([
+    getRevenueByMonth(),
+    getOpportunitiesByStageCount(),
+    getLeadsBySource(),
+  ])
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Ingresos - 2/3 del ancho */}
+      <div className="lg:col-span-2 bg-background border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-semibold">Evolución de ingresos</p>
+            <p className="text-xs text-muted-foreground">Oportunidades ganadas — últimos 6 meses</p>
+          </div>
+          <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded-full font-medium">₲</span>
+        </div>
+        <MiniBarChart data={revenue} />
+      </div>
+
+      {/* Leads por fuente - 1/3 */}
+      <div className="bg-background border rounded-xl p-4">
+        <div className="mb-3">
+          <p className="text-sm font-semibold">Leads por fuente</p>
+          <p className="text-xs text-muted-foreground">Origen de contactos</p>
+        </div>
+        <DonutSource data={sources} />
+      </div>
+
+      {/* Funnel - ancho completo */}
+      <div className="lg:col-span-3 bg-background border rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-semibold">Funnel de conversión</p>
+            <p className="text-xs text-muted-foreground">Oportunidades por etapa del pipeline</p>
+          </div>
+        </div>
+        <HorizontalFunnel data={funnel} />
+      </div>
+    </div>
+  )
 }
 
-async function DashboardTasks() {
+async function DashboardBottom() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const userId = user?.id || ''
+  const userId = user?.id ?? ''
+  const [tasksResult, activitiesResult] = await Promise.all([
+    getRecentTasks(userId, 5),
+    getRecentActivities(10),
+  ])
 
-  const { data: tasks } = await getRecentTasks(userId, 5)
-  return <RecentTasksList tasks={tasks || []} />
-}
-
-async function DashboardActivities() {
-  const { data: activities } = await getRecentActivities(10)
-  return <RecentActivitiesList activities={activities || []} />
-}
-
-async function DashboardRevenueChart() {
-  const data = await getRevenueByMonth()
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Evolución de ingresos</CardTitle>
-        <p className="text-xs text-muted-foreground">Oportunidades ganadas — últimos 6 meses</p>
-      </CardHeader>
-      <CardContent>
-        <RevenueChart data={data} />
-      </CardContent>
-    </Card>
-  )
-}
-
-async function DashboardFunnel() {
-  const data = await getOpportunitiesByStageCount()
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Funnel de conversión</CardTitle>
-        <p className="text-xs text-muted-foreground">Oportunidades por etapa</p>
-      </CardHeader>
-      <CardContent>
-        <FunnelChart data={data} />
-      </CardContent>
-    </Card>
-  )
-}
-
-async function DashboardLeadsSources() {
-  const data = await getLeadsBySource()
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">Leads por fuente</CardTitle>
-        <p className="text-xs text-muted-foreground">Origen de contactos</p>
-      </CardHeader>
-      <CardContent>
-        <LeadsSourceChart data={data} />
-      </CardContent>
-    </Card>
-  )
-}
-
-function LoadingCard() {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground animate-pulse">
-          Cargando...
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold animate-pulse text-muted-foreground">--</div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function LoadingList() {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base animate-pulse">Cargando...</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground animate-pulse">
-          Cargando...
-        </p>
-      </CardContent>
-    </Card>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <RecentTasksList tasks={tasksResult.data ?? []} />
+      <RecentActivitiesList activities={activitiesResult.data ?? []} />
+    </div>
   )
 }
 
 export default async function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="p-4 lg:p-6 space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Bienvenido al panel de control de {businessConfig.name}
-        </p>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Bienvenido al panel de control de {businessConfig.name}</p>
       </div>
 
       <Suspense fallback={
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <LoadingCard />
-          <LoadingCard />
-          <LoadingCard />
-          <LoadingCard />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => <LoadingCard key={i} />)}
         </div>
       }>
-        <DashboardMetrics />
+        <DashboardStats />
       </Suspense>
 
-      {/* Gráfico de ingresos - ancho completo */}
-      <Suspense fallback={<LoadingCard />}>
-        <DashboardRevenueChart />
+      <Suspense fallback={<LoadingChart />}>
+        <DashboardCharts />
       </Suspense>
 
-      {/* Funnel + Fuentes - dos columnas */}
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <Suspense fallback={<LoadingCard />}>
-          <DashboardFunnel />
-        </Suspense>
-        <Suspense fallback={<LoadingCard />}>
-          <DashboardLeadsSources />
-        </Suspense>
-      </div>
-
-      <Suspense fallback={<LoadingCard />}>
-        <DashboardPipelineSummary />
+      <Suspense fallback={<LoadingChart />}>
+        <DashboardBottom />
       </Suspense>
-
-      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-        <Suspense fallback={<LoadingList />}>
-          <DashboardTasks />
-        </Suspense>
-        <Suspense fallback={<LoadingList />}>
-          <DashboardActivities />
-        </Suspense>
-      </div>
     </div>
   )
 }
