@@ -302,7 +302,7 @@ export function KanbanBoard({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="flex flex-col lg:flex-row gap-4 pb-4 overflow-x-auto lg:overflow-x-visible">
           {sortedStages.map((stage) => (
             <StageColumn
               key={stage.id}

@@ -12,6 +12,7 @@ import { LeadDetailPanel } from './lead-detail-panel'
 import { getContacts, getContactById } from '@/lib/actions/leads'
 import { getActivitiesByContact } from '@/lib/actions/activities'
 import { getTasksByContact } from '@/lib/actions/tasks'
+import { cn } from '@/lib/utils'
 import type { ContactWithRelations } from '@/lib/actions/leads'
 import type { Activity } from '@/lib/actions/activities'
 import type { Task } from '@/lib/actions/tasks'
@@ -149,7 +150,7 @@ export function LeadTable({ initialContacts }: LeadTableProps) {
           <DialogTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full sm:w-auto cursor-pointer">
             Nuevo Lead
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-full max-w-lg mx-4">
             <DialogHeader>
               <DialogTitle>Nuevo Lead</DialogTitle>
             </DialogHeader>
@@ -164,49 +165,87 @@ export function LeadTable({ initialContacts }: LeadTableProps) {
       </div>
 
       <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Empresa</TableHead>
-              <TableHead>Fuente</TableHead>
-              <TableHead>Interés</TableHead>
-              <TableHead>Responsable</TableHead>
-              <TableHead>Fecha</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredContacts.length === 0 ? (
+        {/* Desktop: Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                  {isPending ? 'Cargando...' : 'No hay leads disponibles'}
-                </TableCell>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Empresa</TableHead>
+                <TableHead>Fuente</TableHead>
+                <TableHead>Interés</TableHead>
+                <TableHead>Responsable</TableHead>
+                <TableHead>Fecha</TableHead>
               </TableRow>
-            ) : (
-              filteredContacts.map((contact) => {
-                const fullName = `${contact.first_name}${contact.last_name ? ` ${contact.last_name}` : ''}`
-                return (
-                  <TableRow
-                    key={contact.id}
-                    className="cursor-pointer"
-                    onClick={() => handleContactClick(contact)}
-                  >
-                    <TableCell className="font-medium">{fullName}</TableCell>
-                    <TableCell>{contact.companies?.name ?? '-'}</TableCell>
-                    <TableCell className="capitalize">{contact.source ?? '-'}</TableCell>
-                    <TableCell>
-                      <InterestBadge level={contact.interest_level} />
-                    </TableCell>
-                    <TableCell>{contact.profiles?.full_name ?? '-'}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(contact.created_at)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredContacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    {isPending ? 'Cargando...' : 'No hay leads disponibles'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredContacts.map((contact) => {
+                  const fullName = `${contact.first_name}${contact.last_name ? ` ${contact.last_name}` : ''}`
+                  return (
+                    <TableRow
+                      key={contact.id}
+                      className="cursor-pointer"
+                      onClick={() => handleContactClick(contact)}
+                    >
+                      <TableCell className="font-medium">{fullName}</TableCell>
+                      <TableCell>{contact.companies?.name ?? '-'}</TableCell>
+                      <TableCell className="capitalize">{contact.source ?? '-'}</TableCell>
+                      <TableCell>
+                        <InterestBadge level={contact.interest_level} />
+                      </TableCell>
+                      <TableCell>{contact.profiles?.full_name ?? '-'}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(contact.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile: Cards */}
+        <div className="md:hidden divide-y">
+          {filteredContacts.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {isPending ? 'Cargando...' : 'No hay leads disponibles'}
+            </div>
+          ) : (
+            filteredContacts.map((contact) => {
+              const fullName = `${contact.first_name}${contact.last_name ? ` ${contact.last_name}` : ''}`
+              return (
+                <div
+                  key={contact.id}
+                  className="p-4 cursor-pointer hover:bg-muted/50"
+                  onClick={() => handleContactClick(contact)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-medium">{fullName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {contact.companies?.name ?? 'Sin empresa'}
+                      </p>
+                    </div>
+                    <InterestBadge level={contact.interest_level} />
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <span className="capitalize">{contact.source ?? '-'}</span>
+                    <span>•</span>
+                    <span>{formatDate(contact.created_at)}</span>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
       </div>
 
       {selectedContact && (

@@ -18,7 +18,7 @@ async function DashboardMetrics() {
   const metricsData = metrics || { newLeads: 0, activeOpportunities: 0, estimatedRevenue: 0, pendingTasks: 0 }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
       <MetricCard
         title="Leads nuevos (7 días)"
         value={metricsData.newLeads}
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
       </div>
 
       <Suspense fallback={
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <LoadingCard />
           <LoadingCard />
           <LoadingCard />
@@ -121,7 +121,7 @@ export default async function DashboardPage() {
         <DashboardPipelineSummary />
       </Suspense>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
         <Suspense fallback={<LoadingList />}>
           <DashboardTasks />
         </Suspense>

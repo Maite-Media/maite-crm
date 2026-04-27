@@ -107,7 +107,7 @@ export function CompanyTable({ initialCompanies }: CompanyTableProps) {
           <DialogTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full sm:w-auto cursor-pointer">
             Nueva Empresa
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="w-full max-w-lg mx-4">
             <DialogHeader>
               <DialogTitle>Nueva Empresa</DialogTitle>
             </DialogHeader>
@@ -122,50 +122,80 @@ export function CompanyTable({ initialCompanies }: CompanyTableProps) {
       </div>
 
       <div className="border rounded-lg">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nombre</TableHead>
-              <TableHead>Rubro</TableHead>
-              <TableHead>Estado</TableHead>
-              <TableHead>Contactos</TableHead>
-              <TableHead>Oportunidades</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCompanies.length === 0 ? (
+        {/* Desktop: Table */}
+        <div className="hidden md:block overflow-x-auto">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  {isPending ? 'Cargando...' : 'No hay empresas disponibles'}
-                </TableCell>
+                <TableHead>Nombre</TableHead>
+                <TableHead>Rubro</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Contactos</TableHead>
+                <TableHead>Oportunidades</TableHead>
               </TableRow>
-            ) : (
-              filteredCompanies.map((company) => {
-                const contactCount = company.contacts?.length ?? 0
-                const opportunityCount = company.opportunities?.length ?? 0
-                return (
-                  <TableRow
-                    key={company.id}
-                    className="cursor-pointer"
-                    onClick={() => handleCompanyClick(company)}
-                  >
-                    <TableCell className="font-medium">{company.name}</TableCell>
-                    <TableCell>{company.industry ?? '-'}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={company.status} />
-                    </TableCell>
-                    <TableCell>
-                      {contactCount > 0 ? contactCount : 'Sin datos'}
-                    </TableCell>
-                    <TableCell>
-                      {opportunityCount > 0 ? opportunityCount : 'Sin datos'}
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {filteredCompanies.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    {isPending ? 'Cargando...' : 'No hay empresas disponibles'}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredCompanies.map((company) => {
+                  const contactCount = company.contacts?.length ?? 0
+                  const opportunityCount = company.opportunities?.length ?? 0
+                  return (
+                    <TableRow
+                      key={company.id}
+                      className="cursor-pointer"
+                      onClick={() => handleCompanyClick(company)}
+                    >
+                      <TableCell className="font-medium">{company.name}</TableCell>
+                      <TableCell>{company.industry ?? '-'}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={company.status} />
+                      </TableCell>
+                      <TableCell>
+                        {contactCount > 0 ? contactCount : 'Sin datos'}
+                      </TableCell>
+                      <TableCell>
+                        {opportunityCount > 0 ? opportunityCount : 'Sin datos'}
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile: Cards */}
+        <div className="md:hidden divide-y">
+          {filteredCompanies.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {isPending ? 'Cargando...' : 'No hay empresas disponibles'}
+            </div>
+          ) : (
+            filteredCompanies.map((company) => (
+              <div
+                key={company.id}
+                className="p-4 cursor-pointer hover:bg-muted/50"
+                onClick={() => handleCompanyClick(company)}
+              >
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-medium">{company.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {company.industry ?? 'Sin rubro'}
+                    </p>
+                  </div>
+                  <StatusBadge status={company.status} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {selectedCompany && (

@@ -228,7 +228,7 @@ export function TeamManager() {
         <DialogTrigger>
           <Button>Invitar usuario</Button>
         </DialogTrigger>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogContent className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Invitar nuevo usuario</DialogTitle>
             <DialogDescription>
