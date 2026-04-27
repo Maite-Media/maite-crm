@@ -1,10 +1,14 @@
 import { Suspense } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import { getDashboardMetrics, getRecentTasks, getRecentActivities, getPipelineSummary } from '@/lib/actions/dashboard'
+import { getRevenueByMonth, getOpportunitiesByStageCount, getLeadsBySource } from '@/lib/actions/dashboard-charts'
 import { MetricCard } from '@/components/dashboard/metric-card'
 import { RecentTasksList } from '@/components/dashboard/recent-tasks-list'
 import { RecentActivitiesList } from '@/components/dashboard/recent-activities-list'
 import { PipelineSummaryCard } from '@/components/dashboard/pipeline-summary-card'
+import { RevenueChart } from '@/components/dashboard/revenue-chart'
+import { FunnelChart } from '@/components/dashboard/funnel-chart'
+import { LeadsSourceChart } from '@/components/dashboard/leads-source-chart'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Users, Target, CheckSquare, Coins } from 'lucide-react'
 import { businessConfig } from '@/config/business-config'
@@ -66,6 +70,51 @@ async function DashboardActivities() {
   return <RecentActivitiesList activities={activities || []} />
 }
 
+async function DashboardRevenueChart() {
+  const data = await getRevenueByMonth()
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Evolución de ingresos</CardTitle>
+        <p className="text-xs text-muted-foreground">Oportunidades ganadas — últimos 6 meses</p>
+      </CardHeader>
+      <CardContent>
+        <RevenueChart data={data} />
+      </CardContent>
+    </Card>
+  )
+}
+
+async function DashboardFunnel() {
+  const data = await getOpportunitiesByStageCount()
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Funnel de conversión</CardTitle>
+        <p className="text-xs text-muted-foreground">Oportunidades por etapa</p>
+      </CardHeader>
+      <CardContent>
+        <FunnelChart data={data} />
+      </CardContent>
+    </Card>
+  )
+}
+
+async function DashboardLeadsSources() {
+  const data = await getLeadsBySource()
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">Leads por fuente</CardTitle>
+        <p className="text-xs text-muted-foreground">Origen de contactos</p>
+      </CardHeader>
+      <CardContent>
+        <LeadsSourceChart data={data} />
+      </CardContent>
+    </Card>
+  )
+}
+
 function LoadingCard() {
   return (
     <Card>
@@ -107,7 +156,7 @@ export default async function DashboardPage() {
       </div>
 
       <Suspense fallback={
-<div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
           <LoadingCard />
           <LoadingCard />
           <LoadingCard />
@@ -116,6 +165,21 @@ export default async function DashboardPage() {
       }>
         <DashboardMetrics />
       </Suspense>
+
+      {/* Gráfico de ingresos - ancho completo */}
+      <Suspense fallback={<LoadingCard />}>
+        <DashboardRevenueChart />
+      </Suspense>
+
+      {/* Funnel + Fuentes - dos columnas */}
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+        <Suspense fallback={<LoadingCard />}>
+          <DashboardFunnel />
+        </Suspense>
+        <Suspense fallback={<LoadingCard />}>
+          <DashboardLeadsSources />
+        </Suspense>
+      </div>
 
       <Suspense fallback={<LoadingCard />}>
         <DashboardPipelineSummary />
