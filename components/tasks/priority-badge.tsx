@@ -1,35 +1,29 @@
-import { Badge } from '@/components/ui/badge'
-
 type Priority = 'low' | 'medium' | 'high' | null
 
-interface PriorityBadgeProps {
-  priority: Priority
+const config: Record<string, { label: string; className: string; style: React.CSSProperties }> = {
+  low: {
+    label: 'BAJA',
+    className: 'bg-zinc-800 text-zinc-500',
+    style: { border: '1px solid rgba(113,113,122,0.3)' },
+  },
+  medium: {
+    label: 'MEDIA',
+    className: 'bg-amber-900/20 text-amber-400',
+    style: { border: '1px solid rgba(217,119,6,0.35)' },
+  },
+  high: {
+    label: 'ALTA',
+    className: 'bg-[#E31E24]/10 text-[#E31E24]',
+    style: { border: '1px solid rgba(227,30,36,0.35)', boxShadow: '0 0 6px rgba(227,30,36,0.15)' },
+  },
 }
 
-const variantMap: Record<string, 'default' | 'secondary' | 'destructive'> = {
-  low: 'default',
-  medium: 'secondary',
-  high: 'destructive',
-}
-
-const labelMap: Record<string, string> = {
-  low: 'Baja',
-  medium: 'Media',
-  high: 'Alta',
-}
-
-export function PriorityBadge({ priority }: PriorityBadgeProps) {
+export function PriorityBadge({ priority }: { priority: Priority }) {
   if (!priority) return null
-
-  const className = priority === 'medium'
-    ? 'bg-amber-100 text-amber-800 border-amber-300'
-    : priority === 'low'
-    ? 'bg-gray-100 text-gray-600 border-gray-300'
-    : undefined
-
+  const c = config[priority]
   return (
-    <Badge variant={variantMap[priority]} className={className}>
-      {labelMap[priority]}
-    </Badge>
+    <span className={`inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest rounded-sm ${c.className}`} style={c.style}>
+      {c.label}
+    </span>
   )
 }

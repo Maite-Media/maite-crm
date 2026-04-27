@@ -2,15 +2,10 @@
 
 import { useState, useTransition } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
 import { ActivityFeed } from '@/components/shared/activity-feed'
 import { OpportunityForm } from './opportunity-form'
 import { ProposalButton } from './proposal-button'
-import { updateOpportunity } from '@/lib/actions/opportunities'
-import { getActivitiesByOpportunity } from '@/lib/actions/activities'
-import { getTasksByOpportunity } from '@/lib/actions/tasks'
 import type { OpportunityWithRelations } from '@/lib/actions/opportunities'
 import type { Activity } from '@/lib/actions/activities'
 import type { Task } from '@/lib/actions/tasks'
@@ -30,36 +25,32 @@ interface OpportunityDetailPanelProps {
 }
 
 function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('es-PY', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return new Date(dateString).toLocaleDateString('es-PY', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 function formatCurrency(value: number | null): string {
-  if (value === null || value === undefined) return '-'
+  if (!value) return '—'
   return `₲${value.toLocaleString('es-PY')}`
 }
 
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] font-mono text-zinc-200 mt-0.5">{value}</p>
+    </div>
+  )
+}
+
 export function OpportunityDetailPanel({
-  opportunity,
-  activities,
-  tasks,
-  open,
-  onOpenChange,
-  onUpdated,
-  onDeleted,
-  contacts = [],
-  companies = [],
-  services = [],
-  stages = [],
+  opportunity, activities, tasks, open, onOpenChange, onUpdated, onDeleted,
+  contacts = [], companies = [], services = [], stages = [],
 }: OpportunityDetailPanelProps) {
   const [isPending, startTransition] = useTransition()
   const [isEditing, setIsEditing] = useState(false)
 
   function handleDelete() {
-    if (!confirm('¿Estás seguro de eliminar esta oportunidad?')) return
+    if (!confirm('¿Eliminar esta oportunidad?')) return
     onDeleted?.()
     onOpenChange(false)
   }
@@ -67,24 +58,16 @@ export function OpportunityDetailPanel({
   if (isEditing) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ border: '1px solid rgba(227,30,36,0.15)' }}>
           <DialogHeader>
-            <DialogTitle>Editar Oportunidad</DialogTitle>
-            <DialogDescription>
-              Actualiza los datos de la oportunidad
-            </DialogDescription>
+            <DialogTitle className="font-mono font-bold uppercase tracking-wider text-white">Editar Oportunidad</DialogTitle>
+            <DialogDescription className="font-mono text-[10px] text-zinc-600 uppercase tracking-wider">Actualiza los datos de la oportunidad</DialogDescription>
           </DialogHeader>
-          <div className="mt-6">
+          <div className="mt-4">
             <OpportunityForm
-              opportunity={opportunity}
-              contacts={contacts}
-              companies={companies}
-              services={services}
-              stages={stages}
-              onSuccess={() => {
-                setIsEditing(false)
-                onUpdated?.()
-              }}
+              opportunity={opportunity} contacts={contacts} companies={companies}
+              services={services} stages={stages}
+              onSuccess={() => { setIsEditing(false); onUpdated?.() }}
               onCancel={() => setIsEditing(false)}
             />
           </div>
@@ -95,134 +78,111 @@ export function OpportunityDetailPanel({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4 border-b">
-          <div className="flex items-start justify-between gap-2">
-            <DialogTitle className="text-xl">{opportunity.title}</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" style={{ border: '1px solid rgba(227,30,36,0.15)' }}>
+        <div className="absolute top-0 left-1/4 right-1/4 h-px pointer-events-none" style={{ background: 'linear-gradient(90deg, transparent, rgba(227,30,36,0.5), transparent)' }} />
+
+        <DialogHeader className="pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <div className="w-0.5 h-5 bg-[#E31E24] mt-0.5 shrink-0" style={{ boxShadow: '0 0 6px rgba(227,30,36,0.5)' }} />
+              <div>
+                <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest leading-none mb-1">Oportunidad</p>
+                <DialogTitle className="text-base font-mono font-bold uppercase tracking-wider text-white leading-snug">{opportunity.title}</DialogTitle>
+                {opportunity.companies && <p className="text-[10px] font-mono text-zinc-500 mt-0.5">{opportunity.companies.name}</p>}
+              </div>
+            </div>
             {opportunity.pipeline_stages && (
-              <Badge
-                style={{ backgroundColor: opportunity.pipeline_stages.color + '20', color: opportunity.pipeline_stages.color }}
+              <span
+                className="inline-flex items-center px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-widest rounded-sm shrink-0"
+                style={{
+                  background: `${opportunity.pipeline_stages.color}15`,
+                  color: opportunity.pipeline_stages.color,
+                  border: `1px solid ${opportunity.pipeline_stages.color}40`,
+                }}
               >
                 {opportunity.pipeline_stages.name}
-              </Badge>
+              </span>
             )}
           </div>
-          {opportunity.companies && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {opportunity.companies.name}
-            </p>
-          )}
         </DialogHeader>
 
         <Tabs defaultValue="detail" className="mt-4">
-          <TabsList className="w-full">
-            <TabsTrigger value="detail" className="flex-1">Detalle</TabsTrigger>
-            <TabsTrigger value="activity" className="flex-1">Actividad</TabsTrigger>
-            <TabsTrigger value="tasks" className="flex-1">Tareas</TabsTrigger>
+          <TabsList className="w-full font-mono">
+            <TabsTrigger value="detail" className="flex-1 text-[10px] uppercase tracking-wider">Detalle</TabsTrigger>
+            <TabsTrigger value="activity" className="flex-1 text-[10px] uppercase tracking-wider">Actividad</TabsTrigger>
+            <TabsTrigger value="tasks" className="flex-1 text-[10px] uppercase tracking-wider">Tareas</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="detail" className="mt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <TabsContent value="detail" className="mt-4 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
               {opportunity.estimated_value && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Valor estimado</p>
-                  <p className="text-sm font-semibold">{formatCurrency(opportunity.estimated_value)}</p>
-                </div>
+                <Field label="Valor estimado" value={
+                  <span className="text-[13px] font-mono font-bold text-white" style={{ textShadow: '0 0 12px rgba(227,30,36,0.3)' }}>
+                    {formatCurrency(opportunity.estimated_value)}
+                  </span>
+                } />
               )}
-              {opportunity.close_probability !== null && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Probabilidad</p>
-                  <p className="text-sm">{opportunity.close_probability}%</p>
-                </div>
-              )}
-              {opportunity.expected_close_date && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Fecha de cierre</p>
-                  <p className="text-sm">{formatDate(opportunity.expected_close_date)}</p>
-                </div>
-              )}
+              {opportunity.close_probability !== null && <Field label="Probabilidad" value={`${opportunity.close_probability}%`} />}
+              {opportunity.expected_close_date && <Field label="Cierre esperado" value={formatDate(opportunity.expected_close_date)} />}
               {opportunity.services && opportunity.services.length > 0 && (
-                <div>
-                  <p className="text-xs text-muted-foreground">Servicio</p>
-                  <p className="text-sm">{opportunity.services.map(s => s.name).join(', ')}</p>
-                </div>
+                <Field label="Servicio" value={opportunity.services.map(s => s.name).join(', ')} />
               )}
             </div>
 
             {opportunity.contacts && (
-              <div>
-                <p className="text-xs text-muted-foreground">Contacto</p>
-                <p className="text-sm">
-                  {opportunity.contacts.first_name}
-                  {opportunity.contacts.last_name ? ` ${opportunity.contacts.last_name}` : ''}
-                </p>
-              </div>
+              <Field label="Contacto" value={`${opportunity.contacts.first_name}${opportunity.contacts.last_name ? ` ${opportunity.contacts.last_name}` : ''}`} />
             )}
 
             {opportunity.notes && (
               <div>
-                <p className="text-xs text-muted-foreground">Notas</p>
-                <p className="text-sm whitespace-pre-wrap">{opportunity.notes}</p>
+                <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">Notas</p>
+                <p className="text-[11px] font-mono text-zinc-300 mt-0.5 whitespace-pre-wrap leading-relaxed">{opportunity.notes}</p>
               </div>
             )}
 
-            <div className="pt-4 border-t space-y-2">
-              <p className="text-xs text-muted-foreground">Información</p>
-              <p className="text-sm">Creado: {formatDate(opportunity.created_at)}</p>
-              {opportunity.profiles && (
-                <p className="text-sm">Responsable: {opportunity.profiles.full_name}</p>
-              )}
+            <div className="pt-3 space-y-1.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <Field label="Creado" value={formatDate(opportunity.created_at)} />
+              {opportunity.profiles && <Field label="Responsable" value={opportunity.profiles.full_name} />}
             </div>
 
             <div className="pt-2">
-              <ProposalButton
-                opportunityId={opportunity.id}
-                companyName={opportunity.companies?.name}
-              />
+              <ProposalButton opportunityId={opportunity.id} companyName={opportunity.companies?.name} />
             </div>
 
-            <DialogFooter className="flex gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
+            <DialogFooter className="flex gap-2 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <button
                 onClick={() => setIsEditing(true)}
                 disabled={isPending}
+                className="px-4 py-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:text-white disabled:opacity-40"
+                style={{ border: '1px solid rgba(255,255,255,0.1)', borderRadius: '2px', background: 'transparent' }}
               >
                 Editar
-              </Button>
-              <Button
-                variant="destructive"
+              </button>
+              <button
                 onClick={handleDelete}
                 disabled={isPending}
+                className="px-4 py-1.5 text-[10px] font-mono font-bold uppercase tracking-widest text-white transition-all hover:opacity-90 disabled:opacity-40"
+                style={{ background: '#E31E24', borderRadius: '2px', boxShadow: '0 0 12px rgba(227,30,36,0.3)' }}
               >
-                {isPending ? 'Eliminando...' : 'Eliminar'}
-              </Button>
+                Eliminar
+              </button>
             </DialogFooter>
           </TabsContent>
 
           <TabsContent value="activity" className="mt-4">
-            <ActivityFeed
-              activities={activities}
-              opportunityId={opportunity.id}
-            />
+            <ActivityFeed activities={activities} opportunityId={opportunity.id} />
           </TabsContent>
 
           <TabsContent value="tasks" className="mt-4">
             {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Sin tareas asociadas
-              </p>
+              <p className="text-[10px] font-mono text-zinc-700 text-center py-4 uppercase tracking-wider">Sin tareas</p>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {tasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="p-3 rounded-lg border bg-card text-card-foreground"
-                  >
-                    <p className="text-sm font-medium">{task.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {task.due_date ? `Vence: ${formatDate(task.due_date)}` : 'Sin fecha'}
-                      {' • '}
-                      {task.status === 'done' ? 'Completada' : task.status}
+                  <div key={task.id} className="flex items-center justify-between gap-2 px-3 py-2" style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '2px' }}>
+                    <p className="text-[11px] font-mono text-zinc-200">{task.title}</p>
+                    <p className="text-[9px] font-mono text-zinc-600 shrink-0">
+                      {task.due_date ? formatDate(task.due_date) : 'Sin fecha'}
                     </p>
                   </div>
                 ))}
