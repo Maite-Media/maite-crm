@@ -173,12 +173,10 @@ async function DashboardBottom() {
 export default async function DashboardPage() {
   return (
     <div
-      className="relative -m-4 lg:-m-6 p-4 lg:p-6 space-y-4"
+      className="space-y-4"
       style={{
-        backgroundColor: '#080808',
-        backgroundImage: 'radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)',
+        backgroundImage: 'radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px)',
         backgroundSize: '28px 28px',
-        minHeight: 'calc(100vh - 56px)',
       }}
     >
       {/* Header */}

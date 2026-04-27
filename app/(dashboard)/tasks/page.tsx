@@ -24,13 +24,28 @@ export default async function TasksPage() {
   const companies = companiesResult.success ? companiesResult.data : []
   const opportunities = opportunitiesResult.success ? opportunitiesResult.data : []
 
+  const pendingCount = tasks?.filter((t: { status: string }) => t.status === 'pending' || t.status === 'in_progress').length ?? 0
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tareas</h1>
-        <p className="text-muted-foreground">
-          Gestión de tareas y pendientes
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-0.5 h-8 bg-[#E31E24]" style={{ boxShadow: '0 0 8px rgba(227,30,36,0.6)' }} />
+        <div>
+          <p className="text-[9px] font-mono tracking-[0.35em] text-zinc-600 uppercase leading-none">Módulo 05</p>
+          <h1 className="text-lg font-mono font-bold text-white tracking-widest uppercase leading-snug" style={{ textShadow: '0 0 16px rgba(227,30,36,0.25)' }}>
+            Tareas
+          </h1>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {pendingCount > 0 && (
+            <span className="text-[9px] font-mono text-[#E31E24] bg-[#E31E24]/10 px-2 py-0.5 uppercase tracking-wider">
+              {pendingCount} pendientes
+            </span>
+          )}
+          <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">
+            {tasks?.length ?? 0} total
+          </span>
+        </div>
       </div>
 
       <TaskList

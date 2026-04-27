@@ -23,21 +23,27 @@ export default async function PipelinePage() {
   ])
 
   const services = await getServices()
-
   const pipelineData = opportunitiesResult.success ? opportunitiesResult.data : null
   const stages = pipelineData?.stages ?? []
   const opportunities = pipelineData?.opportunities ?? []
-
   const contacts = contactsResult.success ? contactsResult.data ?? [] : []
   const companies = companiesResult.success ? companiesResult.data ?? [] : []
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Pipeline</h1>
-        <p className="text-muted-foreground">
-          Kanban de oportunidades comerciales
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-0.5 h-8 bg-[#E31E24]" style={{ boxShadow: '0 0 8px rgba(227,30,36,0.6)' }} />
+        <div>
+          <p className="text-[9px] font-mono tracking-[0.35em] text-zinc-600 uppercase leading-none">Módulo 04</p>
+          <h1 className="text-lg font-mono font-bold text-white tracking-widest uppercase leading-snug" style={{ textShadow: '0 0 16px rgba(227,30,36,0.25)' }}>
+            Pipeline
+          </h1>
+        </div>
+        <div className="ml-auto">
+          <span className="text-[9px] font-mono text-zinc-600 uppercase tracking-wider">
+            {opportunities.length} oportunidades / {stages.length} etapas
+          </span>
+        </div>
       </div>
 
       <KanbanBoard

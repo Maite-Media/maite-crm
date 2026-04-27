@@ -33,12 +33,15 @@ export default async function SettingsPage() {
   const isAdmin = profile?.role === 'admin'
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Configuración</h1>
-        <p className="text-muted-foreground">
-          Ajustes del sistema y perfil de usuario
-        </p>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="w-0.5 h-8 bg-[#E31E24]" style={{ boxShadow: '0 0 8px rgba(227,30,36,0.6)' }} />
+        <div>
+          <p className="text-[9px] font-mono tracking-[0.35em] text-zinc-600 uppercase leading-none">Módulo 07</p>
+          <h1 className="text-lg font-mono font-bold text-white tracking-widest uppercase leading-snug" style={{ textShadow: '0 0 16px rgba(227,30,36,0.25)' }}>
+            Configuración
+          </h1>
+        </div>
       </div>
 
       <Tabs defaultValue="profile" className="w-full">
