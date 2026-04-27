@@ -1,17 +1,22 @@
 'use client'
-import { LucideIcon } from 'lucide-react'
+
+import { LucideIcon, Users, Target, CheckSquare, TrendingUp } from 'lucide-react'
+
+const iconMap = { Users, Target, CheckSquare, TrendingUp } as const
+type IconName = keyof typeof iconMap
 
 interface StatCardProps {
   title: string
   value: string
   subtitle?: string
-  icon: LucideIcon
+  iconName: IconName
   iconBg: string
   iconColor: string
   trend?: { value: number; isPositive: boolean }
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, iconBg, iconColor, trend }: StatCardProps) {
+export function StatCard({ title, value, subtitle, iconName, iconBg, iconColor, trend }: StatCardProps) {
+  const Icon = iconMap[iconName]
   return (
     <div className="bg-background border rounded-xl p-4 flex items-start gap-3">
       <div className={`p-2.5 rounded-lg shrink-0 ${iconBg}`}>

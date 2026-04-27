@@ -38,7 +38,7 @@ async function DashboardStats() {
       <StatCard
         title="Leads nuevos (7 días)"
         value={String(data.newLeads)}
-        icon={Users}
+        iconName="Users"
         iconBg="bg-blue-50"
         iconColor="text-blue-600"
         subtitle="Últimos 7 días"
@@ -46,7 +46,7 @@ async function DashboardStats() {
       <StatCard
         title="Oportunidades activas"
         value={String(data.activeOpportunities)}
-        icon={Target}
+        iconName="Target"
         iconBg="bg-orange-50"
         iconColor="text-orange-600"
         subtitle="En pipeline"
@@ -54,7 +54,7 @@ async function DashboardStats() {
       <StatCard
         title="Tareas pendientes"
         value={String(data.pendingTasks)}
-        icon={CheckSquare}
+        iconName="CheckSquare"
         iconBg="bg-red-50"
         iconColor="text-red-600"
         subtitle="Sin completar"
@@ -62,7 +62,7 @@ async function DashboardStats() {
       <StatCard
         title="Valor pipeline"
         value={formatCurrency(data.estimatedRevenue)}
-        icon={TrendingUp}
+        iconName="TrendingUp"
         iconBg="bg-green-50"
         iconColor="text-green-600"
         subtitle="Oportunidades activas"
