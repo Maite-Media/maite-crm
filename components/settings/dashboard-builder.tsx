@@ -6,6 +6,9 @@ import {
   getDashboardBuilderConfig,
   updateDashboardLayout,
   resetDashboardToTemplate,
+  deleteDashboardLayoutItem,
+  addDashboardWidgetInstance,
+  updateDashboardWidgetInstance,
 } from '@/lib/actions/dashboard-builder'
 import {
   isValidWidgetType,
@@ -13,7 +16,7 @@ import {
   getWidgetDefinition,
 } from '@/lib/widgets/registry'
 import { WidgetType, WidgetSize } from '@/lib/widgets/types'
-import { ArrowUp, ArrowDown, Eye, EyeOff, Save, RotateCcw, AlertTriangle } from 'lucide-react'
+import { ArrowUp, ArrowDown, Eye, EyeOff, Save, RotateCcw, AlertTriangle, Trash2, Plus, X, Pencil } from 'lucide-react'
 
 // ============================================
 // TYPES
@@ -40,6 +43,16 @@ type EditableWidget = DashboardBuilderItem & {
   hasChanges: boolean
 }
 
+type WidgetForm = {
+  widget_type: WidgetType
+  title_override: string
+  data_source: string
+  metric: string
+  size: 'small' | 'medium' | 'large'
+}
+
+type ModalMode = 'add' | 'edit' | null
+
 // ============================================
 // COMPONENT
 // ============================================
@@ -56,6 +69,22 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Pending deletes (marked for deletion but not yet saved)
+  const [pendingDeletes, setPendingDeletes] = useState<Set<string>>(new Set())
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  // Modal state (add/edit)
+  const [modalMode, setModalMode] = useState<ModalMode>(null)
+  const [editingWidgetId, setEditingWidgetId] = useState<string | null>(null)
+  const [formData, setFormData] = useState<WidgetForm>({
+    widget_type: 'KPI_CARD',
+    title_override: '',
+    data_source: 'leads',
+    metric: 'count',
+    size: 'small',
+  })
+  const [formError, setFormError] = useState<string | null>(null)
 
   // Initialize widgets from server data
   useEffect(() => {
@@ -148,7 +177,81 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
     )
   }, [])
 
-  // Save all changes - NO userId passed, server gets auth from session
+  // Delete widget (mark as pending delete)
+  const handleDeleteWidget = useCallback((id: string) => {
+    setPendingDeletes((prev) => new Set([...prev, id]))
+  }, [])
+
+  // Open add modal
+  const openAddModal = () => {
+    setModalMode('add')
+    setEditingWidgetId(null)
+    setFormData({
+      widget_type: 'KPI_CARD',
+      title_override: '',
+      data_source: 'leads',
+      metric: 'count',
+      size: 'small',
+    })
+    setFormError(null)
+  }
+
+  // Open edit modal
+  const openEditModal = (widgetId: string) => {
+    const widget = widgets.find(w => w.id === widgetId)
+    if (!widget) return
+
+    setModalMode('edit')
+    setEditingWidgetId(widgetId)
+    setFormData({
+      widget_type: widget.widget_type as WidgetType,
+      title_override: widget.editedTitle,
+      data_source: widget.data_source,
+      metric: widget.metric,
+      size: widget.editedSize,
+    })
+    setFormError(null)
+  }
+
+  // Close modal
+  const closeModal = () => {
+    setModalMode(null)
+    setEditingWidgetId(null)
+    setFormError(null)
+  }
+
+  // Get available data sources for widget type
+  const getAvailableDataSources = (type: WidgetType): string[] => {
+    const def = getWidgetDefinition(type)
+    return def?.allowedDataSources ?? ['leads', 'companies', 'opportunities', 'tasks']
+  }
+
+  // Get available metrics for widget type
+  const getAvailableMetrics = (type: WidgetType): string[] => {
+    const def = getWidgetDefinition(type)
+    return def?.allowedMetrics ?? ['count']
+  }
+
+  // Get available sizes for widget type
+  const getAvailableSizes = (type: WidgetType): Array<'small' | 'medium' | 'large'> => {
+    const def = getWidgetDefinition(type)
+    return def?.allowedSizes ?? ['small', 'medium', 'large']
+  }
+
+  // Handle widget type change
+  const handleWidgetTypeChange = (type: string) => {
+    const widgetType = type as WidgetType
+    const def = getWidgetDefinition(widgetType)
+    setFormData((prev) => ({
+      ...prev,
+      widget_type: widgetType,
+      data_source: def?.allowedDataSources[0] ?? 'leads',
+      metric: def?.allowedMetrics[0] ?? 'count',
+      size: def?.allowedSizes?.[0] ?? 'small',
+    }))
+  }
+
+  // Save all changes
   const handleSave = async () => {
     setIsSaving(true)
     setError(null)
@@ -171,6 +274,17 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
         return
       }
 
+      // Handle pending deletes
+      if (pendingDeletes.size > 0) {
+        for (const id of pendingDeletes) {
+          const deleteResult = await deleteDashboardLayoutItem(id)
+          if (!deleteResult.success) {
+            setDeleteError(deleteResult.error ?? 'Error deleting widget')
+          }
+        }
+        setPendingDeletes(new Set())
+      }
+
       setSuccess('Cambios guardados correctamente')
       setWidgets((prev) =>
         prev.map((w) => ({
@@ -191,7 +305,53 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
     }
   }
 
-  // Reset to template - NO userId passed, server gets auth from session
+  // Handle add/edit widget
+  const handleSubmitWidget = async () => {
+    if (!formData.title_override.trim()) {
+      setFormError('El título no puede estar vacío')
+      return
+    }
+
+    try {
+      if (modalMode === 'add') {
+        const result = await addDashboardWidgetInstance({
+          widget_type: formData.widget_type,
+          title_override: formData.title_override,
+          data_source: formData.data_source,
+          metric: formData.metric,
+          size: formData.size,
+        })
+
+        if (!result.success) {
+          setFormError(result.error ?? 'Error agregando widget')
+          return
+        }
+
+        setSuccess('Widget agregado correctamente')
+      } else if (modalMode === 'edit' && editingWidgetId) {
+        const result = await updateDashboardWidgetInstance(editingWidgetId, {
+          title_override: formData.title_override || null,
+          data_source: formData.data_source,
+          metric: formData.metric,
+          size: formData.size,
+        })
+
+        if (!result.success) {
+          setFormError(result.error ?? 'Error actualizando widget')
+          return
+        }
+
+        setSuccess('Widget actualizado correctamente')
+      }
+
+      closeModal()
+      router.refresh()
+    } catch (e) {
+      setFormError('Error de red al guardar widget')
+    }
+  }
+
+  // Reset to template
   const handleReset = async () => {
     if (!showResetConfirm) {
       setShowResetConfirm(true)
@@ -212,9 +372,8 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
 
       setSuccess('Dashboard restaurado a valores por defecto')
       setShowResetConfirm(false)
+      setPendingDeletes(new Set())
       router.refresh()
-      // Re-fetch data
-      window.location.reload()
     } catch (e) {
       setError('Error de red al restaurar')
     } finally {
@@ -239,17 +398,25 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
     }
   }
 
+  // Filter out pending deletes for display
+  const visibleWidgets = widgets.filter((w) => !pendingDeletes.has(w.id))
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-            {widgets.length} widgets
+            {visibleWidgets.length} widgets
           </span>
           {widgets.some((w) => w.hasChanges) && (
             <span className="text-[10px] font-mono text-yellow-500 uppercase tracking-widest">
               • sin guardar
+            </span>
+          )}
+          {pendingDeletes.size > 0 && (
+            <span className="text-[10px] font-mono text-red-500 uppercase tracking-widest">
+              • {pendingDeletes.size} por eliminar
             </span>
           )}
         </div>
@@ -285,8 +452,15 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
             </button>
           )}
           <button
+            onClick={openAddModal}
+            className="flex items-center gap-1 px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-[10px] font-mono text-zinc-400 hover:border-zinc-600 transition-colors"
+          >
+            <Plus size={10} />
+            Agregar widget
+          </button>
+          <button
             onClick={handleSave}
-            disabled={isSaving || !widgets.some((w) => w.hasChanges)}
+            disabled={isSaving || (!widgets.some((w) => w.hasChanges) && pendingDeletes.size === 0)}
             className="flex items-center gap-1 px-3 py-1.5 bg-[#E31E24]/20 border border-[#E31E24]/50 rounded text-[10px] font-mono text-[#E31E24] hover:bg-[#E31E24]/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Save size={10} />
@@ -302,6 +476,12 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
           {error}
         </div>
       )}
+      {deleteError && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-red-900/20 border border-red-800/50 rounded text-[11px] font-mono text-red-400">
+          <AlertTriangle size={12} />
+          {deleteError}
+        </div>
+      )}
       {success && (
         <div className="flex items-center gap-2 px-3 py-2 bg-green-900/20 border border-green-800/50 rounded text-[11px] font-mono text-green-400">
           {success}
@@ -310,7 +490,7 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
 
       {/* Widget List */}
       <div className="space-y-2">
-        {widgets.map((widget, index) => {
+        {visibleWidgets.map((widget, index) => {
           const isUnknownType = !isValidWidgetType(widget.widget_type as WidgetType)
 
           return (
@@ -339,7 +519,7 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
                   </button>
                   <button
                     onClick={() => moveWidget(widget.id, 'down')}
-                    disabled={index === widgets.length - 1}
+                    disabled={index === visibleWidgets.length - 1}
                     className="p-0.5 rounded hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     title="Mover abajo"
                   >
@@ -418,6 +598,26 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
                     {widget.editedIsActive ? <Eye size={10} /> : <EyeOff size={10} />}
                     {widget.editedIsActive ? 'ON' : 'OFF'}
                   </button>
+
+                  {/* Edit button */}
+                  <button
+                    onClick={() => openEditModal(widget.id)}
+                    className="flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 transition-colors"
+                    title="Editar widget"
+                  >
+                    <Pencil size={10} />
+                    EDITAR
+                  </button>
+
+                  {/* Delete button */}
+                  <button
+                    onClick={() => handleDeleteWidget(widget.id)}
+                    className="flex items-center gap-1 text-[9px] font-mono px-1.5 py-0.5 rounded border bg-zinc-900 border-zinc-800 text-zinc-600 hover:border-red-800 hover:text-red-400 transition-colors"
+                    title="Eliminar widget"
+                  >
+                    <Trash2 size={10} />
+                    ELIMINAR
+                  </button>
                 </div>
               </div>
 
@@ -430,13 +630,163 @@ export function DashboardBuilder({ initialData }: DashboardBuilderProps) {
         })}
       </div>
 
+      {/* Add/Edit Widget Modal */}
+      {modalMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-zinc-900 border border-red-800/50 rounded-lg shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+              <h3 className="text-[11px] font-mono text-zinc-300 uppercase tracking-wider">
+                {modalMode === 'add' ? 'Agregar Widget' : 'Editar Widget'}
+              </h3>
+              <button
+                onClick={closeModal}
+                className="p-1 rounded hover:bg-zinc-800 transition-colors"
+              >
+                <X size={14} className="text-zinc-500" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 space-y-4">
+              {/* Title Override */}
+              <div>
+                <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+                  Título
+                </label>
+                <input
+                  type="text"
+                  value={formData.title_override}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, title_override: e.target.value }))}
+                  className="mt-1 w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-zinc-600"
+                  placeholder="Nombre visible del widget"
+                />
+              </div>
+
+              {modalMode === 'add' && (
+                <>
+                  {/* Widget Type (only for add) */}
+                  <div>
+                    <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+                      Tipo de Widget
+                    </label>
+                    <select
+                      value={formData.widget_type}
+                      onChange={(e) => handleWidgetTypeChange(e.target.value)}
+                      className="mt-1 w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-zinc-600"
+                    >
+                      <option value="KPI_CARD">KPI Card</option>
+                      <option value="BAR_CHART">Bar Chart</option>
+                      <option value="DONUT_CHART">Donut Chart</option>
+                      <option value="FUNNEL_CHART">Funnel Chart</option>
+                      <option value="LIST_WIDGET">List Widget</option>
+                    </select>
+                  </div>
+                </>
+              )}
+
+              {/* Data Source */}
+              <div>
+                <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+                  Fuente de Datos
+                </label>
+                <select
+                  value={formData.data_source}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, data_source: e.target.value }))}
+                  className="mt-1 w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-zinc-600"
+                >
+                  {getAvailableDataSources(formData.widget_type).map((source) => (
+                    <option key={source} value={source}>
+                      {source.charAt(0).toUpperCase() + source.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Metric */}
+              <div>
+                <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+                  Métrica
+                </label>
+                <select
+                  value={formData.metric}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, metric: e.target.value }))}
+                  className="mt-1 w-full px-2 py-1.5 bg-zinc-950 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 focus:outline-none focus:border-zinc-600"
+                >
+                  {getAvailableMetrics(formData.widget_type).map((m) => (
+                    <option key={m} value={m}>
+                      {m.charAt(0).toUpperCase() + m.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Size */}
+              <div>
+                <label className="text-[9px] font-mono text-zinc-500 uppercase tracking-wider">
+                  Tamaño
+                </label>
+                <div className="flex items-center gap-2 mt-1">
+                  {(['small', 'medium', 'large'] as const).map((size) => {
+                    const available = getAvailableSizes(formData.widget_type)
+                    const isAvailable = available.includes(size)
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => isAvailable && setFormData((prev) => ({ ...prev, size }))}
+                        disabled={!isAvailable}
+                        className={`
+                          flex-1 text-[9px] font-mono px-2 py-1.5 rounded border transition-colors
+                          ${formData.size === size
+                            ? sizeBadgeColor(size)
+                            : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+                          }
+                          ${!isAvailable ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
+                        `}
+                      >
+                        {size.charAt(0).toUpperCase() + size.slice(1)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Error */}
+              {formError && (
+                <div className="flex items-center gap-2 px-2 py-1.5 bg-red-900/20 border border-red-800/50 rounded text-[10px] font-mono text-red-400">
+                  <AlertTriangle size={10} />
+                  {formError}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-zinc-800">
+              <button
+                onClick={closeModal}
+                className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-[10px] font-mono text-zinc-400 hover:bg-zinc-700 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmitWidget}
+                className="flex items-center gap-1 px-3 py-1.5 bg-[#E31E24]/20 border border-[#E31E24]/50 rounded text-[10px] font-mono text-[#E31E24] hover:bg-[#E31E24]/30 transition-colors"
+              >
+                <Plus size={10} />
+                {modalMode === 'add' ? 'Agregar' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Preview section */}
       <div className="mt-6 pt-4 border-t border-zinc-800">
         <p className="text-[9px] font-mono text-zinc-600 uppercase tracking-widest mb-3">
           Vista previa
         </p>
         <div className="grid grid-cols-4 gap-2">
-          {widgets.map((widget) => (
+          {visibleWidgets.map((widget) => (
             <div
               key={widget.id}
               className={`

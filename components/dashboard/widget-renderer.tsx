@@ -191,23 +191,47 @@ export async function WidgetRenderer({ widget }: WidgetRendererProps) {
     case 'KPI_CARD': {
       const kpiData = await fetchKPIWidgetData(widget.data_source, widget.metric, widget.config_json)
 
+      // Determine icon based on data_source or instance_key pattern
       let iconName: 'Users' | 'Target' | 'CheckSquare' | 'TrendingUp' = 'TrendingUp'
       let iconBg = 'bg-[#E31E24]/15'
       let iconColor = 'text-[#E31E24]'
 
-      switch (widget.instance_key) {
-        case 'leads_new_7d':
-          iconName = 'Users'; iconBg = 'bg-blue-500/15'; iconColor = 'text-blue-400'
-          break
-        case 'active_opps':
-          iconName = 'Target'; iconBg = 'bg-orange-500/15'; iconColor = 'text-orange-400'
-          break
-        case 'pending_tasks':
-          iconName = 'CheckSquare'; iconBg = 'bg-[#E31E24]/15'; iconColor = 'text-[#E31E24]'
-          break
-        case 'pipeline_value':
-          iconName = 'TrendingUp'; iconBg = 'bg-green-500/15'; iconColor = 'text-green-400'
-          break
+      // Check if it's a known instance_key pattern, otherwise use data_source for icon
+      if (widget.instance_key.startsWith('custom_')) {
+        // Custom widget - use data_source to determine icon
+        switch (widget.data_source) {
+          case 'leads':
+          case 'contacts':
+            iconName = 'Users'; iconBg = 'bg-blue-500/15'; iconColor = 'text-blue-400'
+            break
+          case 'opportunities':
+            iconName = 'Target'; iconBg = 'bg-orange-500/15'; iconColor = 'text-orange-400'
+            break
+          case 'tasks':
+            iconName = 'CheckSquare'; iconBg = 'bg-purple-500/15'; iconColor = 'text-purple-400'
+            break
+          case 'projects':
+            iconName = 'TrendingUp'; iconBg = 'bg-green-500/15'; iconColor = 'text-green-400'
+            break
+          default:
+            iconName = 'TrendingUp'; iconBg = 'bg-[#E31E24]/15'; iconColor = 'text-[#E31E24]'
+        }
+      } else {
+        // Template widget - use instance_key mapping
+        switch (widget.instance_key) {
+          case 'leads_new_7d':
+            iconName = 'Users'; iconBg = 'bg-blue-500/15'; iconColor = 'text-blue-400'
+            break
+          case 'active_opps':
+            iconName = 'Target'; iconBg = 'bg-orange-500/15'; iconColor = 'text-orange-400'
+            break
+          case 'pending_tasks':
+            iconName = 'CheckSquare'; iconBg = 'bg-[#E31E24]/15'; iconColor = 'text-[#E31E24]'
+            break
+          case 'pipeline_value':
+            iconName = 'TrendingUp'; iconBg = 'bg-green-500/15'; iconColor = 'text-green-400'
+            break
+        }
       }
 
       const formatValue = (v: number) => {
@@ -226,6 +250,15 @@ export async function WidgetRenderer({ widget }: WidgetRendererProps) {
         pipeline_value: 'Estimado total',
       }
 
+      // For custom widgets, generate subtitle from data_source
+      const getSubtitle = () => {
+        if (subtitleMap[widget.instance_key]) return subtitleMap[widget.instance_key]
+        if (widget.instance_key.startsWith('custom_')) {
+          return widget.data_source.charAt(0).toUpperCase() + widget.data_source.slice(1)
+        }
+        return ''
+      }
+
       return (
         <StatCard
           title={title}
@@ -233,7 +266,7 @@ export async function WidgetRenderer({ widget }: WidgetRendererProps) {
           iconName={iconName}
           iconBg={iconBg}
           iconColor={iconColor}
-          subtitle={subtitleMap[widget.instance_key] ?? ''}
+          subtitle={getSubtitle()}
         />
       )
     }

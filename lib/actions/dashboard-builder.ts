@@ -2,6 +2,14 @@
 
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getUserWorkspace } from './dashboard-workspace'
+import {
+  isValidWidgetType,
+  isDataSourceAllowed,
+  isMetricAllowed,
+  isSizeAllowed,
+  getWidgetDefinition,
+} from '@/lib/widgets/registry'
+import { WidgetType, DataSource, Metric, WidgetSize } from '@/lib/widgets/types'
 
 // ============================================
 // TYPES
@@ -20,38 +28,33 @@ export type DashboardBuilderItem = {
   config_json: Record<string, unknown>
 }
 
+export type AddWidgetInput = {
+  widget_type: string
+  title_override: string
+  data_source: string
+  metric: string
+  size: 'small' | 'medium' | 'large'
+}
+
 // ============================================
 // PERMISSION CHECKS
 // ============================================
 
-/**
- * Get authenticated user from server Supabase client.
- * Returns null if not authenticated.
- */
 async function getAuthenticatedUser() {
   const supabase = await createClient()
   const { data: { user }, error } = await supabase.auth.getUser()
-
-  if (error || !user) {
-    return null
-  }
-
+  if (error || !user) return null
   return user
 }
 
-/**
- * Check if user has admin/owner role in their workspace.
- */
 async function userIsAdminOrOwner(userId: string): Promise<boolean> {
   const supabase = await createClient()
-
   const { data: member } = await supabase
     .from('workspace_members')
     .select('role')
     .eq('user_id', userId)
     .in('role', ['owner', 'admin'])
     .maybeSingle()
-
   return !!member
 }
 
@@ -59,38 +62,22 @@ async function userIsAdminOrOwner(userId: string): Promise<boolean> {
 // SERVER ACTIONS
 // ============================================
 
-/**
- * Get dashboard layout items for the Dashboard Builder.
- * Returns all widgets (active + inactive) ordered by position.
- * User is obtained from server session - no client-side userId needed.
- */
 export async function getDashboardBuilderConfig(): Promise<{
   success: boolean
   data?: DashboardBuilderItem[]
   workspaceId?: string
   error?: string
 }> {
-  // Get authenticated user directly from server
   const user = await getAuthenticatedUser()
-  if (!user) {
-    return { success: false, error: 'No autenticado' }
-  }
+  if (!user) return { success: false, error: 'No autenticado' }
 
   const supabase = await createClient()
-
-  // Get workspace
   const workspace = await getUserWorkspace(user.id)
-  if (!workspace) {
-    return { success: false, error: 'No workspace found' }
-  }
+  if (!workspace) return { success: false, error: 'No workspace found' }
 
-  // Check permission
   const isAdmin = await userIsAdminOrOwner(user.id)
-  if (!isAdmin) {
-    return { success: false, error: 'Permission denied: admin role required' }
-  }
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
 
-  // Fetch all layout items (active + inactive)
   const { data: layouts, error: layoutsError } = await supabase
     .from('dashboard_layouts')
     .select('*')
@@ -102,7 +89,6 @@ export async function getDashboardBuilderConfig(): Promise<{
     return { success: false, error: layoutsError.message }
   }
 
-  // Fetch widget catalog for widget_type
   const widgetIds = layouts?.map((l) => l.widget_id) ?? []
   const { data: widgets } = await supabase
     .from('dashboard_widgets')
@@ -110,9 +96,7 @@ export async function getDashboardBuilderConfig(): Promise<{
     .in('id', widgetIds)
 
   const widgetTypeMap: Record<string, string> = {}
-  widgets?.forEach((w) => {
-    widgetTypeMap[w.id] = w.type
-  })
+  widgets?.forEach((w) => { widgetTypeMap[w.id] = w.type })
 
   const result: DashboardBuilderItem[] = (layouts ?? []).map((layout) => ({
     id: layout.id,
@@ -130,13 +114,6 @@ export async function getDashboardBuilderConfig(): Promise<{
   return { success: true, data: result, workspaceId: workspace.id }
 }
 
-/**
- * Update dashboard layout items.
- * Only owner/admin can call this.
- * Updates: title_override, size, position, is_active, config_json.
- * Does NOT change: instance_key, widget_id, data_source, metric.
- * User is obtained from server session - no client-side userId needed.
- */
 export async function updateDashboardLayout(
   updates: Array<{
     id: string
@@ -147,21 +124,14 @@ export async function updateDashboardLayout(
     config_json?: Record<string, unknown>
   }>
 ): Promise<{ success: boolean; error?: string }> {
-  // Get authenticated user directly from server
   const user = await getAuthenticatedUser()
-  if (!user) {
-    return { success: false, error: 'No autenticado' }
-  }
+  if (!user) return { success: false, error: 'No autenticado' }
 
-  // Check permission
   const isAdmin = await userIsAdminOrOwner(user.id)
-  if (!isAdmin) {
-    return { success: false, error: 'Permission denied: admin role required' }
-  }
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
 
   const adminClient = await createServiceClient()
 
-  // Apply all updates via service role
   for (const update of updates) {
     const { error } = await adminClient
       .from('dashboard_layouts')
@@ -183,37 +153,21 @@ export async function updateDashboardLayout(
   return { success: true }
 }
 
-/**
- * Reset dashboard to a template.
- * Only owner/admin can call this.
- * Uses applyTemplateToWorkspace internally (delete + insert pattern).
- * User is obtained from server session - no client-side userId needed.
- */
 export async function resetDashboardToTemplate(
   templateSlug: string = 'maite-media-agency'
 ): Promise<{ success: boolean; error?: string }> {
-  // Get authenticated user directly from server
   const user = await getAuthenticatedUser()
-  if (!user) {
-    return { success: false, error: 'No autenticado' }
-  }
+  if (!user) return { success: false, error: 'No autenticado' }
 
-  // Check permission
   const isAdmin = await userIsAdminOrOwner(user.id)
-  if (!isAdmin) {
-    return { success: false, error: 'Permission denied: admin role required' }
-  }
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
 
   const supabase = await createClient()
   const adminClient = await createServiceClient()
 
-  // Get workspace
   const workspace = await getUserWorkspace(user.id)
-  if (!workspace) {
-    return { success: false, error: 'No workspace found' }
-  }
+  if (!workspace) return { success: false, error: 'No workspace found' }
 
-  // Fetch template
   const { data: template, error: templateError } = await supabase
     .from('dashboard_templates')
     .select('config_json')
@@ -241,9 +195,7 @@ export async function resetDashboardToTemplate(
         .select('id')
         .eq('type', widgetType)
         .single()
-      if (data?.id) {
-        widgetTypeToId[widgetType] = data.id
-      }
+      if (data?.id) widgetTypeToId[widgetType] = data.id
     }
   }
 
@@ -275,9 +227,7 @@ export async function resetDashboardToTemplate(
     .delete()
     .eq('workspace_id', workspace.id)
 
-  if (deleteError) {
-    return { success: false, error: deleteError.message }
-  }
+  if (deleteError) return { success: false, error: deleteError.message }
 
   // Insert template rows
   if (layoutRows.length > 0) {
@@ -285,12 +235,10 @@ export async function resetDashboardToTemplate(
       .from('dashboard_layouts')
       .insert(layoutRows)
 
-    if (insertError) {
-      return { success: false, error: insertError.message }
-    }
+    if (insertError) return { success: false, error: insertError.message }
   }
 
-  // Update active_template_id in dashboard_settings
+  // Update active_template_id
   const { data: templateData } = await supabase
     .from('dashboard_templates')
     .select('id')
@@ -303,6 +251,190 @@ export async function resetDashboardToTemplate(
       .update({ active_template_id: templateData.id })
       .eq('workspace_id', workspace.id)
   }
+
+  return { success: true }
+}
+
+export async function updateDashboardWidgetInstance(
+  layoutId: string,
+  data: {
+    title_override?: string | null
+    data_source?: string
+    metric?: string
+    size?: 'small' | 'medium' | 'large'
+    is_active?: boolean
+    config_json?: Record<string, unknown>
+  }
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getAuthenticatedUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
+  const isAdmin = await userIsAdminOrOwner(user.id)
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
+
+  const supabase = await createClient()
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  // Verify ownership
+  const { data: layoutItem, error: fetchError } = await supabase
+    .from('dashboard_layouts')
+    .select('id, workspace_id, widget_id')
+    .eq('id', layoutId)
+    .maybeSingle()
+
+  if (fetchError) return { success: false, error: fetchError.message }
+  if (!layoutItem) return { success: false, error: 'Layout item not found' }
+  if (layoutItem.workspace_id !== workspace.id) return { success: false, error: 'Permission denied' }
+
+  // Get widget type for validation
+  const { data: widgetData } = await supabase
+    .from('dashboard_widgets')
+    .select('type')
+    .eq('id', layoutItem.widget_id)
+    .single()
+
+  const widgetType = widgetData?.type as WidgetType | undefined
+
+  if (widgetType && isValidWidgetType(widgetType)) {
+    if (data.data_source && !isDataSourceAllowed(widgetType, data.data_source as DataSource)) {
+      return { success: false, error: `Data source '${data.data_source}' no permitido para widget '${widgetType}'` }
+    }
+    if (data.metric && !isMetricAllowed(widgetType, data.metric as Metric)) {
+      return { success: false, error: `Métrica '${data.metric}' no permitida para widget '${widgetType}'` }
+    }
+    if (data.size && !isSizeAllowed(widgetType, data.size as WidgetSize)) {
+      return { success: false, error: `Tamaño '${data.size}' no permitido para widget '${widgetType}'` }
+    }
+  }
+
+  // Build update object
+  const updateData: Record<string, unknown> = {}
+  if (data.title_override !== undefined) updateData.title_override = data.title_override
+  if (data.data_source !== undefined) updateData.data_source = data.data_source
+  if (data.metric !== undefined) updateData.metric = data.metric
+  if (data.size !== undefined) updateData.size = data.size
+  if (data.is_active !== undefined) updateData.is_active = data.is_active
+  if (data.config_json !== undefined) updateData.config_json = data.config_json
+
+  const adminClient = await createServiceClient()
+  const { error: updateError } = await adminClient
+    .from('dashboard_layouts')
+    .update(updateData)
+    .eq('id', layoutId)
+
+  if (updateError) return { success: false, error: updateError.message }
+
+  return { success: true }
+}
+
+export async function deleteDashboardLayoutItem(
+  layoutId: string
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getAuthenticatedUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
+  const isAdmin = await userIsAdminOrOwner(user.id)
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
+
+  const supabase = await createClient()
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  const { data: layoutItem, error: fetchError } = await supabase
+    .from('dashboard_layouts')
+    .select('id, workspace_id')
+    .eq('id', layoutId)
+    .maybeSingle()
+
+  if (fetchError) return { success: false, error: fetchError.message }
+  if (!layoutItem) return { success: false, error: 'Layout item not found' }
+  if (layoutItem.workspace_id !== workspace.id) return { success: false, error: 'Permission denied' }
+
+  const adminClient = await createServiceClient()
+  const { error: deleteError } = await adminClient
+    .from('dashboard_layouts')
+    .delete()
+    .eq('id', layoutId)
+
+  if (deleteError) return { success: false, error: deleteError.message }
+
+  return { success: true }
+}
+
+export async function addDashboardWidgetInstance(
+  data: AddWidgetInput
+): Promise<{ success: boolean; error?: string }> {
+  const user = await getAuthenticatedUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
+  const isAdmin = await userIsAdminOrOwner(user.id)
+  if (!isAdmin) return { success: false, error: 'Permission denied: admin role required' }
+
+  const supabase = await createClient()
+  const adminClient = await createServiceClient()
+
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  const { widget_type, title_override, data_source, metric, size } = data
+
+  if (!isValidWidgetType(widget_type)) {
+    return { success: false, error: `Widget type '${widget_type}' no existe en el registro` }
+  }
+
+  const wt = widget_type as WidgetType
+
+  if (!isDataSourceAllowed(wt, data_source as DataSource)) {
+    return { success: false, error: `Data source '${data_source}' no permitido para widget '${widget_type}'` }
+  }
+  if (!isMetricAllowed(wt, metric as Metric)) {
+    return { success: false, error: `Métrica '${metric}' no permitida para widget '${widget_type}'` }
+  }
+  if (!isSizeAllowed(wt, size as WidgetSize)) {
+    return { success: false, error: `Tamaño '${size}' no permitido para widget '${widget_type}'` }
+  }
+
+  // Get widget_id from catalog
+  const { data: widgetData, error: widgetError } = await supabase
+    .from('dashboard_widgets')
+    .select('id')
+    .eq('type', widget_type)
+    .single()
+
+  if (widgetError || !widgetData) {
+    return { success: false, error: `Widget type '${widget_type}' not found in catalog` }
+  }
+
+  // Get max position
+  const { data: existingLayouts } = await supabase
+    .from('dashboard_layouts')
+    .select('position')
+    .eq('workspace_id', workspace.id)
+    .order('position', { ascending: false })
+    .limit(1)
+
+  const maxPosition = existingLayouts && existingLayouts.length > 0 ? existingLayouts[0].position : -1
+  const newPosition = maxPosition + 1
+
+  const instance_key = `custom_${widget_type.toLowerCase()}_${Date.now()}`
+
+  const { error: insertError } = await adminClient
+    .from('dashboard_layouts')
+    .insert({
+      workspace_id: workspace.id,
+      instance_key,
+      widget_id: widgetData.id,
+      title_override,
+      data_source,
+      metric,
+      size,
+      position: newPosition,
+      is_active: true,
+      config_json: {},
+    })
+
+  if (insertError) return { success: false, error: insertError.message }
 
   return { success: true }
 }

@@ -8,6 +8,7 @@ import { ServicesManager } from '@/components/settings/services-manager'
 import { PipelineManager } from '@/components/settings/pipeline-manager'
 import { TeamManager } from '@/components/settings/team-manager'
 import { DashboardBuilder } from '@/components/settings/dashboard-builder'
+import { DashboardTemplateSelector } from '@/components/settings/dashboard-template-selector'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { UsersIcon } from 'lucide-react'
@@ -21,6 +22,7 @@ export default async function SettingsPage() {
   let stages: any[] = []
   let dashboardBuilderData: any[] = []
   let isWorkspaceAdmin = false
+  let currentTemplateSlug: string | undefined
 
   if (user) {
     const profileResult = await getProfile(user.id)
@@ -47,6 +49,34 @@ export default async function SettingsPage() {
       const builderResult = await getDashboardBuilderConfig()
       if (builderResult.success) {
         dashboardBuilderData = builderResult.data || []
+      }
+
+      // Get current active template slug from dashboard_settings
+      const { data: memberData } = await supabase
+        .from('workspace_members')
+        .select('workspace_id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      const workspaceId = memberData?.workspace_id
+
+      if (workspaceId) {
+        const { data: dashboardSettings } = await supabase
+          .from('dashboard_settings')
+          .select('active_template_id')
+          .eq('workspace_id', workspaceId)
+          .single()
+
+        const activeTemplateId = dashboardSettings?.active_template_id
+
+        if (activeTemplateId) {
+          const { data: template } = await supabase
+            .from('dashboard_templates')
+            .select('slug')
+            .eq('id', activeTemplateId)
+            .single()
+          currentTemplateSlug = template?.slug
+        }
       }
     }
   }
@@ -105,7 +135,7 @@ export default async function SettingsPage() {
           </TabsContent>
         )}
         {isWorkspaceAdmin && (
-          <TabsContent value="dashboard" className="mt-4">
+          <TabsContent value="dashboard" className="mt-4 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm font-mono uppercase tracking-wider text-zinc-300">
@@ -117,6 +147,20 @@ export default async function SettingsPage() {
               </CardHeader>
               <CardContent>
                 <DashboardBuilder initialData={dashboardBuilderData} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-mono uppercase tracking-wider text-zinc-300">
+                  Templates
+                </CardTitle>
+                <CardDescription className="text-xs font-mono text-zinc-500">
+                  Aplicá un template para reconfigurar todos los widgets del dashboard.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DashboardTemplateSelector currentTemplateSlug={currentTemplateSlug} />
               </CardContent>
             </Card>
           </TabsContent>
