@@ -25,3 +25,18 @@ export async function createClient() {
     }
   )
 }
+
+// Service role client — only for backend operations that need to bypass RLS
+// NEVER import this in client-side code
+export async function createServiceClient() {
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      cookies: {
+        getAll() { return [] },
+        setAll() {},
+      },
+    }
+  )
+}

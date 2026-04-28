@@ -2,10 +2,12 @@ import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/actions/profile'
 import { getServices } from '@/lib/actions/services'
 import { getPipelineStages } from '@/lib/actions/pipeline-config'
+import { getDashboardBuilderConfig } from '@/lib/actions/dashboard-builder'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { ServicesManager } from '@/components/settings/services-manager'
 import { PipelineManager } from '@/components/settings/pipeline-manager'
 import { TeamManager } from '@/components/settings/team-manager'
+import { DashboardBuilder } from '@/components/settings/dashboard-builder'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { UsersIcon } from 'lucide-react'
@@ -17,6 +19,8 @@ export default async function SettingsPage() {
   let profile = null
   let services: any[] = []
   let stages: any[] = []
+  let dashboardBuilderData: any[] = []
+  let isWorkspaceAdmin = false
 
   if (user) {
     const profileResult = await getProfile(user.id)
@@ -27,6 +31,24 @@ export default async function SettingsPage() {
 
     const stagesResult = await getPipelineStages()
     if (stagesResult.success) stages = stagesResult.data || []
+
+    // Check workspace membership for dashboard builder
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('user_id', user.id)
+      .in('role', ['owner', 'admin'])
+      .maybeSingle()
+
+    isWorkspaceAdmin = !!member
+
+    // Fetch dashboard builder config if user is admin/owner
+    if (isWorkspaceAdmin) {
+      const builderResult = await getDashboardBuilderConfig()
+      if (builderResult.success) {
+        dashboardBuilderData = builderResult.data || []
+      }
+    }
   }
 
   // Hardcoded admin check — replace with real role check when auth is ready
@@ -51,6 +73,9 @@ export default async function SettingsPage() {
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           {isAdmin && (
             <TabsTrigger value="team">Equipo</TabsTrigger>
+          )}
+          {isWorkspaceAdmin && (
+            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           )}
         </TabsList>
 
@@ -77,6 +102,23 @@ export default async function SettingsPage() {
         {isAdmin && (
           <TabsContent value="team" className="mt-4">
             <TeamManager />
+          </TabsContent>
+        )}
+        {isWorkspaceAdmin && (
+          <TabsContent value="dashboard" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-mono uppercase tracking-wider text-zinc-300">
+                  Dashboard Builder
+                </CardTitle>
+                <CardDescription className="text-xs font-mono text-zinc-500">
+                  Personalizá los widgets de tu dashboard. Los cambios se reflejan inmediatamente en /dashboard.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DashboardBuilder initialData={dashboardBuilderData} />
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>

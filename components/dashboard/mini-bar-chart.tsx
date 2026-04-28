@@ -21,46 +21,57 @@ function formatTooltipValue(value: number): string {
 
 export function MiniBarChart({ data, color = '#E31E24' }: MiniBarChartProps) {
   const maxVal = Math.max(...data.map(d => d.value), 1)
+
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-52 flex items-center justify-center">
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Sin datos</p>
+      </div>
+    )
+  }
+
   return (
-    <ResponsiveContainer width="100%" height={210}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }} barCategoryGap="32%">
-        <CartesianGrid strokeDasharray="1 4" stroke="#1e1e1e" vertical={false} />
-        <XAxis
-          dataKey="month"
-          tick={{ fontSize: 10, fill: '#52525b', fontFamily: 'monospace', letterSpacing: '0.05em' }}
-          axisLine={false}
-          tickLine={false}
-        />
-        <YAxis
-          tickFormatter={formatAxisValue}
-          tick={{ fontSize: 9, fill: '#3f3f46', fontFamily: 'monospace' }}
-          axisLine={false}
-          tickLine={false}
-          width={54}
-        />
-        <Tooltip
-          formatter={(value) => [formatTooltipValue(value as number), 'Ingresos']}
-          contentStyle={{
-            background: '#111',
-            border: '1px solid rgba(227,30,36,0.3)',
-            borderRadius: '2px',
-            fontSize: '11px',
-            fontFamily: 'monospace',
-            color: '#fff',
-            boxShadow: '0 0 20px rgba(227,30,36,0.1)',
-          }}
-          cursor={{ fill: 'rgba(227,30,36,0.04)' }}
-        />
-        <Bar dataKey="value" radius={[2, 2, 0, 0]}>
-          {data.map((entry, index) => (
-            <Cell
-              key={index}
-              fill={entry.value === maxVal && maxVal > 0 ? color : `${color}40`}
-              style={entry.value === maxVal && maxVal > 0 ? { filter: `drop-shadow(0 0 6px ${color}88)` } : undefined}
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div style={{ width: '100%', minHeight: 210 }}>
+      <ResponsiveContainer width="100%" height={210}>
+        <BarChart data={data} margin={{ top: 8, right: 8, left: 8, bottom: 4 }} barCategoryGap="32%">
+          <CartesianGrid strokeDasharray="1 4" stroke="#1e1e1e" vertical={false} />
+          <XAxis
+            dataKey="month"
+            tick={{ fontSize: 10, fill: '#52525b', fontFamily: 'monospace', letterSpacing: '0.05em' }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={formatAxisValue}
+            tick={{ fontSize: 9, fill: '#3f3f46', fontFamily: 'monospace' }}
+            axisLine={false}
+            tickLine={false}
+            width={54}
+          />
+          <Tooltip
+            formatter={(value) => [formatTooltipValue(value as number), 'Ingresos']}
+            contentStyle={{
+              background: '#111',
+              border: '1px solid rgba(227,30,36,0.3)',
+              borderRadius: '2px',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              color: '#fff',
+              boxShadow: '0 0 20px rgba(227,30,36,0.1)',
+            }}
+            cursor={{ fill: 'rgba(227,30,36,0.04)' }}
+          />
+          <Bar dataKey="value" radius={[2, 2, 0, 0]}>
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={entry.value === maxVal && maxVal > 0 ? color : `${color}40`}
+                style={entry.value === maxVal && maxVal > 0 ? { filter: `drop-shadow(0 0 6px ${color}88)` } : undefined}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   )
 }

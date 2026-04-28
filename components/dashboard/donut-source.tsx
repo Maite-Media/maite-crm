@@ -30,24 +30,25 @@ function CustomLegend({ data, total }: LegendProps) {
 }
 
 export function DonutSource({ data }: { data: Array<{ name: string; value: number }> }) {
-  if (!data.length) {
+  if (!data || data.length === 0) {
     return (
-      <div className="h-44 flex items-center justify-center text-[10px] font-mono text-zinc-600 uppercase tracking-wider">
-        Sin datos
+      <div className="h-44 flex items-center justify-center">
+        <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Sin datos</p>
       </div>
     )
   }
+
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
     <div className="flex items-center gap-3 h-44">
-      <div className="relative shrink-0" style={{ width: 140, height: 140 }}>
-        <ResponsiveContainer width="100%" height="100%">
+      <div className="relative shrink-0" style={{ width: 140, height: 140, minWidth: 140, minHeight: 140 }}>
+        <ResponsiveContainer width={140} height={140}>
           <PieChart>
             <Pie
               data={data}
-              cx="50%"
-              cy="50%"
+              cx={70}
+              cy={70}
               innerRadius={44}
               outerRadius={66}
               paddingAngle={2}
@@ -56,7 +57,7 @@ export function DonutSource({ data }: { data: Array<{ name: string; value: numbe
             >
               {data.map((_, i) => (
                 <Cell
-                  key={i}
+                  key={`cell-${i}`}
                   fill={COLORS[i % COLORS.length]}
                   style={{ filter: `drop-shadow(0 0 4px ${COLORS[i % COLORS.length]}66)` }}
                 />
