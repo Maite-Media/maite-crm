@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getProfile } from '@/lib/actions/profile'
 import { getServices } from '@/lib/actions/services'
-import { getPipelineStages } from '@/lib/actions/pipeline-config'
+import { getWorkspacePipelineStages } from '@/lib/actions/pipeline-actions'
 import { getDashboardBuilderConfig } from '@/lib/actions/dashboard-builder'
 import { ProfileForm } from '@/components/settings/profile-form'
 import { ServicesManager } from '@/components/settings/services-manager'
@@ -31,7 +31,7 @@ export default async function SettingsPage() {
     const servicesResult = await getServices()
     if (servicesResult.success) services = servicesResult.data || []
 
-    const stagesResult = await getPipelineStages()
+    const stagesResult = await getWorkspacePipelineStages()
     if (stagesResult.success) stages = stagesResult.data || []
 
     // Check workspace membership for dashboard builder
