@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { getUserWorkspace } from './dashboard-workspace'
 import { revalidatePath } from 'next/cache'
 
 export type Opportunity = {
@@ -141,6 +142,11 @@ export async function moveStage(id: string, newStageId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
+  // Get user's workspace
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  // Get the opportunity
   const { data: opp } = await supabase
     .from('opportunities')
     .select('stage_id')
@@ -149,18 +155,37 @@ export async function moveStage(id: string, newStageId: string) {
 
   if (!opp) return { success: false, error: 'Oportunidad no encontrada' }
 
-  const { data: newStage } = await supabase
-    .from('pipeline_stages')
-    .select('name, is_won')
-    .eq('id', newStageId)
-    .single()
-
+  // Get old stage and validate workspace
   const { data: oldStage } = await supabase
     .from('pipeline_stages')
-    .select('name')
+    .select('name, workspace_id')
     .eq('id', opp.stage_id)
     .single()
 
+  // Get new stage and validate workspace
+  const { data: newStage } = await supabase
+    .from('pipeline_stages')
+    .select('name, is_won, workspace_id')
+    .eq('id', newStageId)
+    .single()
+
+  if (!newStage) return { success: false, error: 'Etapa destino no encontrada' }
+
+  // Validate: old stage must belong to current workspace (or be legacy with null workspace_id)
+  if (oldStage && oldStage.workspace_id !== null && oldStage.workspace_id !== workspace.id) {
+    return { success: false, error: 'La oportunidad pertenece a una etapa de otro workspace' }
+  }
+
+  // Validate: new stage must belong to current workspace
+  if (newStage.workspace_id === null) {
+    return { success: false, error: 'No podés mover una oportunidad a una etapa legacy sin workspace. Reasigná el pipeline primero.' }
+  }
+
+  if (newStage.workspace_id !== workspace.id) {
+    return { success: false, error: 'No podés mover una oportunidad a una etapa de otro workspace' }
+  }
+
+  // Perform the update
   const { data, error } = await supabase
     .from('opportunities')
     .update({ stage_id: newStageId, updated_at: new Date().toISOString() })

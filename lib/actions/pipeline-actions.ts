@@ -77,6 +77,37 @@ export type ApplyTemplateResult =
   | { success: false; code: 'OPPORTUNITIES_EXIST'; opportunityCount: number; stagesWithOpportunities: Array<{ stageId: string; stageName: string; opportunityCount: number }>; templateStages: PipelineTemplateStage[] }
   | { success: false; code?: string; error: string }
 
+export type WorkspaceOpportunitiesByStage = {
+  success: boolean
+  data?: {
+    stages: PipelineStage[]
+    opportunities: Array<{
+      id: string
+      title: string
+      contact_id: string | null
+      company_id: string | null
+      service_id: string | null
+      stage_id: string
+      estimated_value: number | null
+      close_probability: number | null
+      expected_close_date: string | null
+      assigned_to: string | null
+      notes: string | null
+      created_by: string
+      created_at: string
+      updated_at: string
+      contacts: { first_name: string; last_name: string | null } | null
+      companies: { name: string } | null
+      services: Array<{ id: string; name: string }> | null
+      pipeline_stages: { name: string; color: string; is_won: boolean; is_lost: boolean } | null
+      profiles: { full_name: string } | null
+      created_by_profile: { full_name: string } | null
+    }>
+  }
+  workspaceId?: string
+  error?: string
+}
+
 // ============================================
 // HELPERS
 // ============================================
@@ -241,6 +272,67 @@ export async function getWorkspacePipelineStages(): Promise<{
   }
 
   return { success: true, data: stages ?? [], workspaceId: workspace.id }
+}
+
+/**
+ * Get opportunities grouped by stages for the current user's workspace.
+ * Only returns stages and opportunities belonging to the current workspace.
+ * Opportunities are filtered by stage_id belonging to workspace stages.
+ */
+export async function getWorkspaceOpportunitiesByStage(): Promise<WorkspaceOpportunitiesByStage> {
+  const user = await getAuthenticatedUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  const supabase = await createClient()
+
+  // Get stages for this workspace only
+  const { data: stages, error: stagesError } = await supabase
+    .from('pipeline_stages')
+    .select('*')
+    .eq('workspace_id', workspace.id)
+    .order('position', { ascending: true })
+
+  if (stagesError) {
+    return { success: false, error: stagesError.message }
+  }
+
+  if (!stages || stages.length === 0) {
+    return { success: true, data: { stages: [], opportunities: [] }, workspaceId: workspace.id }
+  }
+
+  // Get stage IDs for this workspace
+  const stageIds = stages.map(s => s.id)
+
+  // Get opportunities whose stage_id is in our workspace stages
+  const { data: opportunities, error: opportunitiesError } = await supabase
+    .from('opportunities')
+    .select(`
+      *,
+      contacts(first_name, last_name),
+      companies(name),
+      services(id, name),
+      profiles!opportunities_assigned_to_fkey(full_name),
+      created_by_profile:profiles!opportunities_created_by_fkey(full_name),
+      pipeline_stages(name, color, is_won, is_lost)
+    `)
+    .in('stage_id', stageIds)
+    .order('created_at', { ascending: false })
+
+  if (opportunitiesError) {
+    return { success: false, error: opportunitiesError.message }
+  }
+
+  return {
+    success: true,
+    data: {
+      stages: stages ?? [],
+      opportunities: (opportunities ?? []) as WorkspaceOpportunitiesByStage['data'] extends { opportunities: infer O } ? O : never,
+    },
+    workspaceId: workspace.id,
+  }
 }
 
 /**

@@ -1,4 +1,4 @@
-import { getOpportunitiesByStage } from '@/lib/actions/opportunities'
+import { getWorkspaceOpportunitiesByStage } from '@/lib/actions/pipeline-actions'
 import { getContacts } from '@/lib/actions/leads'
 import { getCompanies } from '@/lib/actions/companies'
 import { createClient } from '@/lib/supabase/server'
@@ -17,17 +17,29 @@ async function getServices() {
 
 export default async function PipelinePage() {
   const [opportunitiesResult, contactsResult, companiesResult] = await Promise.all([
-    getOpportunitiesByStage(),
+    getWorkspaceOpportunitiesByStage(),
     getContacts(),
     getCompanies(),
   ])
 
   const services = await getServices()
   const pipelineData = opportunitiesResult.success ? opportunitiesResult.data : null
-  const stages = pipelineData?.stages ?? []
+  const rawStages = pipelineData?.stages ?? []
   const opportunities = pipelineData?.opportunities ?? []
   const contacts = contactsResult.success ? contactsResult.data ?? [] : []
   const companies = companiesResult.success ? companiesResult.data ?? [] : []
+
+  // Map stages to the minimal type expected by KanbanBoard (from ./types)
+  // The full PipelineStage from pipeline-actions.ts has more fields
+  const stages = rawStages.map(s => ({
+    id: s.id,
+    name: s.name,
+    position: s.position,
+    color: s.color ?? '#6366f1',
+    is_won: s.is_won,
+    is_lost: s.is_lost,
+    created_at: s.created_at,
+  }))
 
   return (
     <div className="space-y-4">
