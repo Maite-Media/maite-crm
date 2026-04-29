@@ -43,23 +43,15 @@ export async function createContact(data: {
 }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
-  console.log('[createContact] user:', user?.id)
-  console.log('[createContact] data recibido:', JSON.stringify(data))
-
   if (!user) return { success: false, error: 'No autorizado' }
 
   const insertData = { ...data, created_by: user.id }
-  console.log('[createContact] insertData:', JSON.stringify(insertData))
 
   const { data: contact, error } = await supabase
     .from('contacts')
     .insert(insertData)
     .select()
     .single()
-
-  console.log('[createContact] resultado - contact:', JSON.stringify(contact))
-  console.log('[createContact] resultado - error:', JSON.stringify(error))
 
   if (error) return { success: false, error: error.message }
 
@@ -71,6 +63,7 @@ export async function createContact(data: {
   })
 
   revalidatePath('/leads')
+  revalidatePath('/dashboard')
   return { success: true, data: contact }
 }
 
@@ -96,12 +89,29 @@ export async function deleteContact(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
+  // Get contact info for activity before soft deleting
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('first_name, last_name')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase
     .from('contacts')
     .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
     .eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Log deletion activity
+  const contactName = contact ? `${contact.first_name}${contact.last_name ? ` ${contact.last_name}` : ''}` : 'Lead'
+  await supabase.from('activities').insert({
+    type: 'system',
+    description: `Lead eliminado: ${contactName}`,
+    contact_id: id,
+    created_by: user.id
+  })
+
   revalidatePath('/leads')
   revalidatePath('/dashboard')
   return { success: true }

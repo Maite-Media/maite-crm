@@ -92,12 +92,27 @@ export async function deleteProject(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
+  // Get project name for activity before soft deleting
+  const { data: projectData } = await supabase
+    .from('projects')
+    .select('name')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase
     .from('projects')
     .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
     .eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Log deletion activity
+  await supabase.from('activities').insert({
+    type: 'system',
+    description: `Proyecto eliminado: ${projectData?.name ?? 'Sin nombre'}`,
+    created_by: user.id
+  })
+
   revalidatePath('/projects')
   revalidatePath('/dashboard')
   return { success: true }

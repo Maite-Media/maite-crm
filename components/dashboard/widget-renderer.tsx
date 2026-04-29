@@ -169,7 +169,8 @@ async function fetchListWidgetData(dataSource: string, config: Record<string, un
   }
 
   if (itemType === 'activities' || dataSource === 'activities') {
-    // Exclude activities whose related entity has been soft-deleted
+    // System activities (like "Lead creado", "Lead eliminado") are self-contained events
+    // and should always be shown. Only filter non-system activities linked to deleted entities.
     const { data } = await supabase
       .from('activities')
       .select('*, profiles!activities_created_by_fkey(full_name), contacts(first_name, last_name), companies(name), opportunities(title)')
@@ -177,8 +178,10 @@ async function fetchListWidgetData(dataSource: string, config: Record<string, un
       .limit(limit * 3) // fetch extra to filter down
 
     if (data) {
-      // Filter out activities linked to soft-deleted entities
       const filtered = data.filter(a => {
+        // Always show system activities (they describe what happened, not the current state)
+        if (a.type === 'system') return true
+        // For non-system activities, hide if parent entity was soft-deleted
         if (a.contact_id && a.contacts && (a.contacts as Record<string, unknown>)['deleted_at'] !== null) return false
         if (a.company_id && a.companies && (a.companies as Record<string, unknown>)['deleted_at'] !== null) return false
         if (a.opportunity_id && a.opportunities && (a.opportunities as Record<string, unknown>)['deleted_at'] !== null) return false

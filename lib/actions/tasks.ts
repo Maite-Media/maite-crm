@@ -78,12 +78,27 @@ export async function deleteTask(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
+  // Get task title for activity before soft deleting
+  const { data: taskData } = await supabase
+    .from('tasks')
+    .select('title')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase
     .from('tasks')
     .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
     .eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Log deletion activity
+  await supabase.from('activities').insert({
+    type: 'system',
+    description: `Tarea eliminada: ${taskData?.title ?? 'Sin título'}`,
+    created_by: user.id
+  })
+
   revalidatePath('/tasks')
   revalidatePath('/dashboard')
   return { success: true }

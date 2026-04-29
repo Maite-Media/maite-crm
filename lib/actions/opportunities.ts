@@ -108,6 +108,7 @@ export async function createOpportunity(data: {
   })
 
   revalidatePath('/pipeline')
+  revalidatePath('/dashboard')
   return { success: true, data: opp }
 }
 
@@ -279,6 +280,13 @@ export async function deleteOpportunity(id: string) {
     return { success: false, error: 'La oportunidad pertenece a otro workspace' }
   }
 
+  // Get opportunity title for activity before soft deleting
+  const { data: oppData } = await supabase
+    .from('opportunities')
+    .select('title')
+    .eq('id', id)
+    .single()
+
   // Soft delete
   const { error } = await supabase
     .from('opportunities')
@@ -286,6 +294,15 @@ export async function deleteOpportunity(id: string) {
     .eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Log deletion activity
+  await supabase.from('activities').insert({
+    type: 'system',
+    description: `Oportunidad eliminada: ${oppData?.title ?? 'Sin título'}`,
+    opportunity_id: id,
+    created_by: user.id
+  })
+
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
   return { success: true }

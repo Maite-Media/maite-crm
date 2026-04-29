@@ -60,6 +60,7 @@ export async function createCompany(data: {
   })
 
   revalidatePath('/companies')
+  revalidatePath('/dashboard')
   return { success: true, data: company }
 }
 
@@ -85,12 +86,28 @@ export async function deleteCompany(id: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'No autorizado' }
 
+  // Get company name for activity before soft deleting
+  const { data: company } = await supabase
+    .from('companies')
+    .select('name')
+    .eq('id', id)
+    .single()
+
   const { error } = await supabase
     .from('companies')
     .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
     .eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Log deletion activity
+  await supabase.from('activities').insert({
+    type: 'system',
+    description: `Empresa eliminada: ${company?.name ?? 'Sin nombre'}`,
+    company_id: id,
+    created_by: user.id
+  })
+
   revalidatePath('/companies')
   revalidatePath('/dashboard')
   return { success: true }
