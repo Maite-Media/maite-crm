@@ -85,6 +85,7 @@ export async function deleteTask(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/tasks')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

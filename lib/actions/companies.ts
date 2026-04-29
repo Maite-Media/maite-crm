@@ -92,6 +92,7 @@ export async function deleteCompany(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/companies')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

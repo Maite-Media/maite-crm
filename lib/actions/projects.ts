@@ -99,6 +99,7 @@ export async function deleteProject(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/projects')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

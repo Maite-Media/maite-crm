@@ -287,6 +287,7 @@ export async function deleteOpportunity(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/pipeline')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

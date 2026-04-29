@@ -26,6 +26,7 @@ async function fetchKPIWidgetData(dataSource: string, metric: string, config: Re
     const { data: opportunities } = await supabase
       .from('opportunities')
       .select('estimated_value, pipeline_stages(id, is_lost)')
+      .is('deleted_at', null)
     const total = opportunities?.reduce((sum, opp) => {
       const stage = (opp as Record<string, unknown>).pipeline_stages as { is_lost?: boolean } | null
       if (!stage?.is_lost && opp.estimated_value) {
@@ -45,7 +46,7 @@ async function fetchKPIWidgetData(dataSource: string, metric: string, config: Re
 
   switch (dataSource) {
     case 'leads': {
-      let query = supabase.from('contacts').select('*', { count: 'exact', head: true })
+      let query = supabase.from('contacts').select('*', { count: 'exact', head: true }).is('deleted_at', null)
       if (dateFilter) query = query.gte('created_at', dateFilter)
       const { count } = await query
       return { value: count || 0 }
@@ -54,6 +55,7 @@ async function fetchKPIWidgetData(dataSource: string, metric: string, config: Re
       const { data: opps } = await supabase
         .from('opportunities')
         .select('pipeline_stages(id, is_won, is_lost)')
+        .is('deleted_at', null)
       const active = opps?.filter(o => {
         const stage = (o as Record<string, unknown>).pipeline_stages as { is_won?: boolean; is_lost?: boolean } | null
         return stage && !stage.is_won && !stage.is_lost
@@ -61,7 +63,7 @@ async function fetchKPIWidgetData(dataSource: string, metric: string, config: Re
       return { value: active }
     }
     case 'tasks': {
-      let query = supabase.from('tasks').select('*', { count: 'exact', head: true })
+      let query = supabase.from('tasks').select('*', { count: 'exact', head: true }).is('deleted_at', null)
       if (userId) query = query.eq('assigned_to', userId)
       query = query.in('status', ['pending', 'in_progress'])
       const { count } = await query
@@ -81,6 +83,7 @@ async function fetchBarChartData() {
     .from('opportunities')
     .select('estimated_value, updated_at, pipeline_stages!opportunities_stage_id_fkey(is_won)')
     .gte('updated_at', sixMonthsAgo.toISOString())
+    .is('deleted_at', null)
 
   const monthNames = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const months: Record<string, number> = {}
@@ -107,7 +110,7 @@ async function fetchBarChartData() {
 
 async function fetchDonutChartData() {
   const supabase = await createClient()
-  const { data } = await supabase.from('contacts').select('source')
+  const { data } = await supabase.from('contacts').select('source').is('deleted_at', null)
 
   const sourceLabels: Record<string, string> = {
     web: 'Web', whatsapp: 'WhatsApp', linkedin: 'LinkedIn',
@@ -137,6 +140,7 @@ async function fetchFunnelData() {
   const { data: opportunities } = await supabase
     .from('opportunities')
     .select('stage_id')
+    .is('deleted_at', null)
 
   return stages?.map(stage => ({
     name: stage.name,
@@ -157,6 +161,7 @@ async function fetchListWidgetData(dataSource: string, config: Record<string, un
     const { data } = await supabase
       .from('tasks')
       .select('*, contacts(first_name, last_name), companies(name), opportunities(title), profiles!tasks_assigned_to_fkey(full_name)')
+      .is('deleted_at', null)
       .in('status', ['pending', 'in_progress'])
       .order('due_date', { ascending: true })
       .limit(limit)
@@ -164,12 +169,24 @@ async function fetchListWidgetData(dataSource: string, config: Record<string, un
   }
 
   if (itemType === 'activities' || dataSource === 'activities') {
+    // Exclude activities whose related entity has been soft-deleted
     const { data } = await supabase
       .from('activities')
       .select('*, profiles!activities_created_by_fkey(full_name), contacts(first_name, last_name), companies(name), opportunities(title)')
       .order('created_at', { ascending: false })
-      .limit(limit)
-    return { type: 'activities', data: (data ?? []) as Activity[] }
+      .limit(limit * 3) // fetch extra to filter down
+
+    if (data) {
+      // Filter out activities linked to soft-deleted entities
+      const filtered = data.filter(a => {
+        if (a.contact_id && a.contacts && (a.contacts as Record<string, unknown>)['deleted_at'] !== null) return false
+        if (a.company_id && a.companies && (a.companies as Record<string, unknown>)['deleted_at'] !== null) return false
+        if (a.opportunity_id && a.opportunities && (a.opportunities as Record<string, unknown>)['deleted_at'] !== null) return false
+        return true
+      })
+      return { type: 'activities', data: (filtered.slice(0, limit)) as Activity[] }
+    }
+    return { type: 'activities', data: [] as Activity[] }
   }
 
   return { type: 'tasks', data: [] }

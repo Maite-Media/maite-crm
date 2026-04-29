@@ -63,6 +63,7 @@ export async function deleteService(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/settings')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

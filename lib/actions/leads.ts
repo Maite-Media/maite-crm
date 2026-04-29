@@ -103,6 +103,7 @@ export async function deleteContact(id: string) {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/leads')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

@@ -21,9 +21,6 @@ export async function getDashboardMetrics(userId?: string) {
     .select('*, pipeline_stages!opportunities_stage_id_fkey(is_won, is_lost)')
     .is('deleted_at', null)
 
-  console.log('[getDashboardMetrics] opportunities count:', opportunities?.length)
-  console.log('[getDashboardMetrics] oppError:', JSON.stringify(oppError))
-
   const activeOpportunities = opportunities?.filter(
     opp => !opp.pipeline_stages?.is_won && !opp.pipeline_stages?.is_lost
   ).length || 0
@@ -36,10 +33,11 @@ export async function getDashboardMetrics(userId?: string) {
     return sum
   }, 0) || 0
 
-  // Tareas pendientes: status = 'pending' OR status = 'in_progress'
+  // Tareas pendientes: status = 'pending' OR 'in_progress', no eliminadas
   let tasksQuery = supabase
     .from('tasks')
     .select('*', { count: 'exact', head: true })
+    .is('deleted_at', null)
 
   if (userId) {
     tasksQuery = tasksQuery.eq('assigned_to', userId)
@@ -48,8 +46,6 @@ export async function getDashboardMetrics(userId?: string) {
   // Filter: pending OR in_progress
   const { count: pendingTasks, error: tasksError } = await tasksQuery
     .in('status', ['pending', 'in_progress'])
-
-  console.log('[getDashboardMetrics] pendingTasks:', pendingTasks, 'tasksError:', tasksError)
 
   return {
     success: true,
@@ -77,7 +73,6 @@ export async function getRecentActivities(limit = 10) {
     .select('*, profiles!activities_created_by_fkey(full_name), contacts(first_name, last_name), companies(name), opportunities(title)')
     .order('created_at', { ascending: false })
     .limit(limit)
-  console.log('[getRecentActivities] data:', data?.length, 'error:', error)
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 }
@@ -95,9 +90,6 @@ export async function getPipelineSummary() {
     .from('opportunities')
     .select('stage_id, estimated_value, pipeline_stages!opportunities_stage_id_fkey(name, is_won, is_lost)')
     .is('deleted_at', null)
-
-  console.log('[getPipelineSummary] stages:', stages?.length, 'opportunities:', opportunities?.length)
-  console.log('[getPipelineSummary] stagesError:', stagesError, 'oppError:', oppError)
 
   if (stagesError || oppError) return { success: false, error: stagesError?.message || oppError?.message }
 
