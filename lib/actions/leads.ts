@@ -93,7 +93,14 @@ export async function updateContact(id: string, data: Partial<Contact>) {
 
 export async function deleteContact(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('contacts').delete().eq('id', id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('contacts')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/leads')
   return { success: true }
@@ -108,6 +115,7 @@ export async function getContacts(filters?: {
   let query = supabase
     .from('contacts')
     .select('*, companies(name), profiles!contacts_assigned_to_fkey(full_name), created_by_profile:profiles!contacts_created_by_fkey(full_name)')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (filters?.interest_level) query = query.eq('interest_level', filters.interest_level)
@@ -115,9 +123,6 @@ export async function getContacts(filters?: {
   if (filters?.assigned_to) query = query.eq('assigned_to', filters.assigned_to)
 
   const { data, error } = await query
-  console.log('[getContacts] raw data:', JSON.stringify(data))
-  console.log('[getContacts] error:', JSON.stringify(error))
-  console.log('[getContacts] count:', data?.length ?? 0)
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 }
@@ -128,6 +133,7 @@ export async function getContactById(id: string) {
     .from('contacts')
     .select('*, companies(*), profiles!contacts_assigned_to_fkey(full_name), created_by_profile:profiles!contacts_created_by_fkey(full_name)')
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
   if (error) return { success: false, error: error.message }
   return { success: true, data }

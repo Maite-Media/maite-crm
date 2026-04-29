@@ -25,6 +25,7 @@ export async function getTasksByContact(contactId: string) {
     .from('tasks')
     .select('*, profiles!tasks_assigned_to_fkey(full_name), created_by_profile:profiles!tasks_created_by_fkey(full_name)')
     .eq('contact_id', contactId)
+    .is('deleted_at', null)
     .order('due_date', { ascending: true })
   if (error) return { success: false, error: error.message }
   return { success: true, data }
@@ -74,7 +75,14 @@ export async function updateTask(id: string, data: Partial<Task>) {
 
 export async function deleteTask(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/tasks')
   return { success: true }
@@ -103,6 +111,7 @@ export async function getTasksByOpportunity(opportunityId: string) {
     .from('tasks')
     .select('*, profiles!tasks_assigned_to_fkey(full_name), created_by_profile:profiles!tasks_created_by_fkey(full_name)')
     .eq('opportunity_id', opportunityId)
+    .is('deleted_at', null)
     .order('due_date', { ascending: true })
   if (error) return { success: false, error: error.message }
   return { success: true, data }
@@ -119,6 +128,7 @@ export async function getTasks(filters?: {
   let query = supabase
     .from('tasks')
     .select('*, profiles!tasks_assigned_to_fkey(full_name), created_by_profile:profiles!tasks_created_by_fkey(full_name), contacts(first_name, last_name), companies(name), opportunities(title)')
+    .is('deleted_at', null)
     .order('due_date', { ascending: true })
 
   if (filters?.status) query = query.eq('status', filters.status)
@@ -127,7 +137,7 @@ export async function getTasks(filters?: {
   if (filters?.company_id) query = query.eq('company_id', filters.company_id)
   if (filters?.opportunity_id) query = query.eq('opportunity_id', filters.opportunity_id)
 
-const { data, error } = await query
+  const { data, error } = await query
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 }

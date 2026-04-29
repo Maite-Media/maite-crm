@@ -11,6 +11,7 @@ export async function getRevenueByMonth() {
     .from('opportunities')
     .select('estimated_value, updated_at, pipeline_stages!opportunities_stage_id_fkey(is_won)')
     .gte('updated_at', sixMonthsAgo.toISOString())
+    .is('deleted_at', null)
 
   // Agrupar por mes
   const months: Record<string, number> = {}
@@ -48,6 +49,7 @@ export async function getOpportunitiesByStageCount() {
   const { data: opportunities } = await supabase
     .from('opportunities')
     .select('stage_id')
+    .is('deleted_at', null)
 
   return stages?.map(stage => ({
     name: stage.name,
@@ -63,6 +65,7 @@ export async function getLeadsBySource() {
   const { data } = await supabase
     .from('contacts')
     .select('source')
+    .is('deleted_at', null)
 
   const sourceLabels: Record<string, string> = {
     web: 'Web',

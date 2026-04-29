@@ -319,6 +319,7 @@ export async function getWorkspaceOpportunitiesByStage(): Promise<WorkspaceOppor
       pipeline_stages(name, color, is_won, is_lost)
     `)
     .in('stage_id', stageIds)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (opportunitiesError) {

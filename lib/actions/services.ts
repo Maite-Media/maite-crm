@@ -53,7 +53,14 @@ export async function updateService(id: string, data: {
 
 export async function deleteService(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('services').delete().eq('id', id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('services')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/settings')
   return { success: true }
@@ -64,6 +71,7 @@ export async function getServices() {
   const { data, error } = await supabase
     .from('services')
     .select('*')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
   if (error) return { success: false, error: error.message }
   return { success: true, data }

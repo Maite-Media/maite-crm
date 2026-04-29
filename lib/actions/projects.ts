@@ -41,10 +41,8 @@ export async function getProjects() {
       opportunities(title),
       profiles!projects_assigned_to_fkey(full_name)
     `)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
-
-  console.log('[getProjects] data:', JSON.stringify(data))
-  console.log('[getProjects] error:', JSON.stringify(error))
 
   if (error) return { success: false, error: error.message }
   return { success: true, data }
@@ -65,6 +63,7 @@ export async function getProjectById(id: string) {
       created_by_profile:profiles!projects_created_by_fkey(full_name)
     `)
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
 
   if (error) return { success: false, error: error.message }
@@ -90,7 +89,14 @@ export async function updateProject(id: string, data: Partial<Project>) {
 
 export async function deleteProject(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('projects').delete().eq('id', id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('projects')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/projects')
   return { success: true }

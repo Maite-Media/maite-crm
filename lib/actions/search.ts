@@ -32,16 +32,19 @@ export async function globalSearch(query: string): Promise<{ success: boolean; d
     supabase
       .from('contacts')
       .select('id, first_name, last_name, email')
+      .is('deleted_at', null)
       .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,email.ilike.%${query}%`)
       .limit(5),
     supabase
       .from('companies')
       .select('id, name, industry')
+      .is('deleted_at', null)
       .ilike('name', `%${query}%`)
       .limit(5),
     supabase
       .from('opportunities')
       .select('id, title, estimated_value')
+      .is('deleted_at', null)
       .ilike('title', `%${query}%`)
       .limit(5),
   ])

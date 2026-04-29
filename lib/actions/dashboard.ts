@@ -8,18 +8,18 @@ export async function getDashboardMetrics(userId?: string) {
   const now = new Date()
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
-  // Leads nuevos en 7 días
+// Leads nuevos en 7 días
   const { count: newLeads, error: leadsError } = await supabase
     .from('contacts')
     .select('*', { count: 'exact', head: true })
     .gte('created_at', sevenDaysAgo)
-
-  console.log('[getDashboardMetrics] newLeads:', newLeads, 'leadsError:', leadsError)
+    .is('deleted_at', null)
 
   // Oportunidades activas (no ganado, no perdido) - usando subquery para evitar FK ambigua
   const { data: opportunities, error: oppError } = await supabase
     .from('opportunities')
     .select('*, pipeline_stages!opportunities_stage_id_fkey(is_won, is_lost)')
+    .is('deleted_at', null)
 
   console.log('[getDashboardMetrics] opportunities count:', opportunities?.length)
   console.log('[getDashboardMetrics] oppError:', JSON.stringify(oppError))
@@ -62,10 +62,10 @@ export async function getRecentTasks(userId: string, limit = 8) {
   const { data, error } = await supabase
     .from('tasks')
     .select('*, contacts(first_name, last_name), companies(name), opportunities(title), profiles!tasks_assigned_to_fkey(full_name)')
+    .is('deleted_at', null)
     .in('status', ['pending', 'in_progress'])
     .order('due_date', { ascending: true })
     .limit(limit)
-  console.log('[getRecentTasks] data:', data?.length, 'error:', error)
   if (error) return { success: false, error: error.message }
   return { success: true, data }
 }
@@ -94,6 +94,7 @@ export async function getPipelineSummary() {
   const { data: opportunities, error: oppError } = await supabase
     .from('opportunities')
     .select('stage_id, estimated_value, pipeline_stages!opportunities_stage_id_fkey(name, is_won, is_lost)')
+    .is('deleted_at', null)
 
   console.log('[getPipelineSummary] stages:', stages?.length, 'opportunities:', opportunities?.length)
   console.log('[getPipelineSummary] stagesError:', stagesError, 'oppError:', oppError)

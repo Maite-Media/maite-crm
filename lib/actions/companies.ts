@@ -82,7 +82,14 @@ export async function updateCompany(id: string, data: Partial<Company>) {
 
 export async function deleteCompany(id: string) {
   const supabase = await createClient()
-  const { error } = await supabase.from('companies').delete().eq('id', id)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  const { error } = await supabase
+    .from('companies')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/companies')
   return { success: true }
@@ -101,6 +108,7 @@ export async function getCompanies(filters?: {
       contacts(id),
       opportunities(id, stage_id)
     `)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) return { success: false, error: error.message }
@@ -125,6 +133,7 @@ export async function getCompanyById(id: string) {
       opportunities(id, title, stage_id, estimated_value)
     `)
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
   if (error) return { success: false, error: error.message }
   return { success: true, data }

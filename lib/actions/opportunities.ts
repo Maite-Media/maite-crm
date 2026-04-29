@@ -244,6 +244,52 @@ export async function moveStage(id: string, newStageId: string) {
   return { success: true, data }
 }
 
+export async function deleteOpportunity(id: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autorizado' }
+
+  // Get user's workspace
+  const workspace = await getUserWorkspace(user.id)
+  if (!workspace) return { success: false, error: 'No workspace found' }
+
+  // Get opportunity and validate it belongs to current workspace via stage
+  const { data: opp } = await supabase
+    .from('opportunities')
+    .select('id, stage_id')
+    .eq('id', id)
+    .single()
+
+  if (!opp) return { success: false, error: 'Oportunidad no encontrada' }
+
+  // Validate stage belongs to current workspace
+  const { data: stage } = await supabase
+    .from('pipeline_stages')
+    .select('workspace_id')
+    .eq('id', opp.stage_id)
+    .single()
+
+  if (!stage) return { success: false, error: 'Etapa no encontrada' }
+
+  if (stage.workspace_id === null) {
+    return { success: false, error: 'La oportunidad pertenece a una etapa legacy. Reasigná el pipeline primero.' }
+  }
+
+  if (stage.workspace_id !== workspace.id) {
+    return { success: false, error: 'La oportunidad pertenece a otro workspace' }
+  }
+
+  // Soft delete
+  const { error } = await supabase
+    .from('opportunities')
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq('id', id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/pipeline')
+  return { success: true }
+}
+
 export async function getOpportunitiesByStage() {
   const supabase = await createClient()
 
@@ -257,10 +303,10 @@ export async function getOpportunitiesByStage() {
   const { data: opportunities, error: opportunitiesError } = await supabase
     .from('opportunities')
     .select('*, contacts(first_name, last_name), companies(name), profiles!opportunities_assigned_to_fkey(full_name), created_by_profile:profiles!opportunities_created_by_fkey(full_name)')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (opportunitiesError) {
-    console.log('[getOpportunitiesByStage] opportunitiesError:', JSON.stringify(opportunitiesError))
     return { success: false, error: opportunitiesError.message }
   }
 
@@ -300,6 +346,7 @@ export async function getOpportunityById(id: string) {
     .from('opportunities')
     .select('*, contacts(*), companies(*), services(*), pipeline_stages(*), profiles!opportunities_assigned_to_fkey(full_name), created_by_profile:profiles!opportunities_created_by_fkey(full_name)')
     .eq('id', id)
+    .is('deleted_at', null)
     .single()
   if (error) return { success: false, error: error.message }
   return { success: true, data }
@@ -310,6 +357,7 @@ export async function getOpportunitiesList() {
   const { data, error } = await supabase
     .from('opportunities')
     .select('id, title')
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
   if (error) return { success: false, error: error.message }
   return { success: true, data }
