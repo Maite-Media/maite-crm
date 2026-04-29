@@ -41,14 +41,36 @@ export async function getRevenueByMonth() {
 // Retorna cantidad de oportunidades por etapa
 export async function getOpportunitiesByStageCount() {
   const supabase = await createClient()
+
+  // Get authenticated user and workspace
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!member) return []
+
   const { data: stages } = await supabase
     .from('pipeline_stages')
     .select('id, name, position, is_won, is_lost')
+    .eq('workspace_id', member.workspace_id)
     .order('position')
+
+  const stageIds = stages?.map(s => s.id) ?? []
+
+  // Early return if no stages
+  if (stageIds.length === 0) {
+    return []
+  }
 
   const { data: opportunities } = await supabase
     .from('opportunities')
     .select('stage_id')
+    .in('stage_id', stageIds)
     .is('deleted_at', null)
 
   return stages?.map(stage => ({

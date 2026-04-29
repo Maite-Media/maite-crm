@@ -210,6 +210,7 @@ export async function moveStage(id: string, newStageId: string) {
       .from('opportunities')
       .select('title, company_id, contact_id, assigned_to')
       .eq('id', id)
+      .is('deleted_at', null)
       .single()
 
     // Get first service from opportunity_services

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { AlertTriangle, Check, X, LayoutGrid } from 'lucide-react'
 
 // ============================================
@@ -57,6 +58,7 @@ export function DashboardTemplateSelector({
   const [showConfirm, setShowConfirm] = useState<string | null>(null)
   const [applyError, setApplyError] = useState<string | null>(null)
   const [applySuccess, setApplySuccess] = useState<string | null>(null)
+  const router = useRouter()
 
   // Fetch templates on mount
   useEffect(() => {
@@ -121,9 +123,9 @@ export function DashboardTemplateSelector({
       setApplySuccess('Template aplicado correctamente')
       setShowConfirm(null)
 
-      // Reload page after short delay to reflect changes
+      // Refresh Next.js router after short delay to reflect changes
       setTimeout(() => {
-        window.location.reload()
+        router.refresh()
       }, 800)
     } catch (e) {
       setApplyError('Error de red al aplicar template')

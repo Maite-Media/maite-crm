@@ -80,15 +80,36 @@ export async function getRecentActivities(limit = 10) {
 export async function getPipelineSummary() {
   const supabase = await createClient()
 
-  // Get all stages with their opportunities
+  // Get authenticated user and workspace
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'No autenticado' }
+
+  const { data: member } = await supabase
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!member) return { success: false, error: 'No workspace found' }
+
+  // Get stages filtered by workspace
   const { data: stages, error: stagesError } = await supabase
     .from('pipeline_stages')
     .select('id, name, color, is_won, is_lost')
+    .eq('workspace_id', member.workspace_id)
     .order('position', { ascending: true })
+
+  const stageIds = stages?.map(s => s.id) ?? []
+
+  // Early return if no stages (no pipeline configured yet)
+  if (stageIds.length === 0) {
+    return { success: true, data: [] }
+  }
 
   const { data: opportunities, error: oppError } = await supabase
     .from('opportunities')
-    .select('stage_id, estimated_value, pipeline_stages!opportunities_stage_id_fkey(name, is_won, is_lost)')
+    .select('stage_id, estimated_value')
+    .in('stage_id', stageIds)
     .is('deleted_at', null)
 
   if (stagesError || oppError) return { success: false, error: stagesError?.message || oppError?.message }

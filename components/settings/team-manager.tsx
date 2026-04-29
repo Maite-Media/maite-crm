@@ -48,13 +48,10 @@ export function TeamManager() {
   // Load data on mount
   useEffect(() => {
     startTransition(async () => {
-      console.log('[TeamManager] Loading team data...')
       const [membersResult, invitationsResult] = await Promise.all([
         getTeamMembers(),
         getInvitations(),
       ])
-      console.log('[TeamManager] membersResult:', membersResult.success, membersResult.data?.length)
-      console.log('[TeamManager] invitationsResult:', invitationsResult.success, invitationsResult.data?.length)
       if (membersResult.success) setMembers(membersResult.data ?? [])
       if (invitationsResult.success) setInvitations(invitationsResult.data ?? [])
       setIsLoading(false)

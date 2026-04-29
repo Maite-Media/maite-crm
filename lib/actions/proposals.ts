@@ -50,6 +50,7 @@ export async function getProposalData(opportunityId: string): Promise<{ success:
       )
     `)
     .eq('id', opportunityId)
+    .is('deleted_at', null)
     .single()
 
   if (oppError || !opportunity) {

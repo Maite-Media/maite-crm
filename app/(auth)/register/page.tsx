@@ -26,7 +26,6 @@ function RegisterForm() {
     setIsLoadingInvitation(true)
     getInvitationByToken(token)
       .then((result) => {
-        console.log('[RegisterForm] getInvitationByToken result:', result)
         if (result.success && result.data) {
           setInviteEmail(result.data.email)
         } else {
