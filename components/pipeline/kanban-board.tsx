@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { OpportunityCard } from './opportunity-card'
 import { OpportunityForm } from './opportunity-form'
-import { moveStage } from '@/lib/actions/opportunities'
+import { moveStage, deleteOpportunity } from '@/lib/actions/opportunities'
 import type { OpportunityWithRelations } from '@/lib/actions/opportunities'
 import type { PipelineStage } from './types'
 
@@ -383,10 +383,17 @@ const OpportunityDetailSheet = React.memo(function OpportunityDetailSheet({
   const [localOpportunity, setLocalOpportunity] = useState(opportunity)
 
   const handleDelete = useCallback(() => {
-    if (!confirm('¿Estás seguro de eliminar esta oportunidad?')) return
-    // Would call deleteOpportunity here
-    onClose()
-  }, [onClose])
+    if (!confirm('¿Seguro que querés eliminar esta oportunidad? Podrás restaurarla más adelante.')) return
+    startTransition(async () => {
+      const result = await deleteOpportunity(opportunity.id)
+      if (result.success) {
+        onRefresh?.()
+        onClose()
+      } else {
+        alert(result.error ?? 'Error al eliminar')
+      }
+    })
+  }, [opportunity.id, onClose, onRefresh])
 
   if (isEditing) {
     return (
