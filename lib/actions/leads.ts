@@ -55,12 +55,15 @@ export async function createContact(data: {
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: 'Lead creado',
     contact_id: contact.id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/leads')
   revalidatePath('/dashboard')
@@ -105,12 +108,15 @@ export async function deleteContact(id: string) {
 
   // Log deletion activity
   const contactName = contact ? `${contact.first_name}${contact.last_name ? ` ${contact.last_name}` : ''}` : 'Lead'
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: `Lead eliminado: ${contactName}`,
     contact_id: id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/leads')
   revalidatePath('/dashboard')

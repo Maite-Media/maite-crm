@@ -93,11 +93,14 @@ export async function deleteTask(id: string) {
   if (error) return { success: false, error: error.message }
 
   // Log deletion activity
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: `Tarea eliminada: ${taskData?.title ?? 'Sin título'}`,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/tasks')
   revalidatePath('/dashboard')

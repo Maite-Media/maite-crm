@@ -71,11 +71,24 @@ export async function getProposalData(opportunityId: string): Promise<{ success:
     `)
     .eq('opportunity_id', opportunityId)
 
-  const services = (oppServices ?? []).map((os: any) => ({
-    name: os.services?.name ?? 'Servicio',
-    service_type: os.services?.service_type ?? null,
-    price: os.unit_price ?? os.services?.price ?? 0,
-  }))
+  type OppServiceRow = {
+    quantity: number | null
+    unit_price: number | null
+    services: Array<{
+      name: string | null
+      service_type: string | null
+      price: number | null
+    }> | null
+  }
+
+  const services = (oppServices ?? []).map((os: OppServiceRow) => {
+    const svc = Array.isArray(os.services) ? os.services[0] : os.services
+    return {
+      name: svc?.name ?? 'Servicio',
+      service_type: svc?.service_type ?? null,
+      price: os.unit_price ?? svc?.price ?? 0,
+    }
+  })
 
   return {
     success: true,

@@ -53,17 +53,18 @@ export async function registerWithInvitation(
     return { success: false, error: authError?.message ?? 'Error al crear usuario' }
   }
 
-  // Wait for trigger to create profile, then update it
-  await new Promise(resolve => setTimeout(resolve, 1000))
-
+  // Directly upsert the profile instead of waiting for trigger
   const { error: profileError } = await supabase
     .from('profiles')
-    .update({
+    .upsert({
+      id: authData.user.id,
       full_name: fullName,
-      role: invitation.role,
+      role: invitation.role ?? 'member',
       email: invitation.email,
+    }, {
+      onConflict: 'id',
+      ignoreDuplicates: false,
     })
-    .eq('id', authData.user.id)
 
   if (profileError) {
     return { success: false, error: profileError.message }

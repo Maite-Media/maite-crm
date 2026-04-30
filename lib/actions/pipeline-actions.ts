@@ -1111,11 +1111,11 @@ export async function reorderPipelineStages(stageIds: string[]): Promise<{
     return { success: false, error: 'Algunas etapas no pertenecen a este workspace' }
   }
 
-  // Update positions
+  // Update positions (1-indexed to match addPipelineStage which uses maxPos.position + 1)
   for (let i = 0; i < stageIds.length; i++) {
     const { error: updateError } = await adminClient
       .from('pipeline_stages')
-      .update({ position: i })
+      .update({ position: i + 1 })
       .eq('id', stageIds[i])
 
     if (updateError) {

@@ -101,6 +101,7 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
   // Apply template state
   const [applyingTemplateSlug, setApplyingTemplateSlug] = useState<string | null>(null)
   const [showApplyConfirm, setShowApplyConfirm] = useState<string | null>(null)
+  const [isReordering, setIsReordering] = useState(false)
 
   // Migration modal state
   const [showMigrationModal, setShowMigrationModal] = useState(false)
@@ -326,8 +327,10 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
 
   // Handle save reorder
   const handleSaveReorder = async () => {
+    setIsReordering(true)
     const stageIds = stages.map((s) => s.id)
     const result = await reorderPipelineStages(stageIds)
+    setIsReordering(false)
 
     if (!result.success) {
       setError(result.error ?? 'Error al reordenar')
@@ -436,11 +439,12 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
           {stages.some((s) => s.hasChanges) && (
             <Button
               onClick={handleSaveReorder}
+              disabled={isReordering}
               size="sm"
-              className="flex items-center gap-1 px-3 py-1.5 bg-[#E31E24]/20 border border-[#E31E24]/50 rounded text-[10px] font-mono text-[#E31E24] hover:bg-[#E31E24]/30 transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 bg-[#E31E24]/20 border border-[#E31E24]/50 rounded text-[10px] font-mono text-[#E31E24] hover:bg-[#E31E24]/30 transition-colors disabled:opacity-50"
             >
               <Check size={10} />
-              Guardar orden
+              {isReordering ? 'Guardando...' : 'Guardar orden'}
             </Button>
           )}
         </div>

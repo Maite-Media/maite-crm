@@ -52,12 +52,15 @@ export async function createCompany(data: {
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: 'Empresa creada',
     company_id: company.id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/companies')
   revalidatePath('/dashboard')
@@ -101,12 +104,15 @@ export async function deleteCompany(id: string) {
   if (error) return { success: false, error: error.message }
 
   // Log deletion activity
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: `Empresa eliminada: ${company?.name ?? 'Sin nombre'}`,
     company_id: id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/companies')
   revalidatePath('/dashboard')
@@ -118,7 +124,7 @@ export async function getCompanies(filters?: {
 }) {
   const supabase = await createClient()
 
-  const { data: companies, error } = await supabase
+  let query = supabase
     .from('companies')
     .select(`
       *,
@@ -129,15 +135,14 @@ export async function getCompanies(filters?: {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
-  if (error) return { success: false, error: error.message }
-
-  let result = companies as CompanyWithRelations[]
-
   if (filters?.status) {
-    result = result.filter(c => c.status === filters.status)
+    query = query.eq('status', filters.status)
   }
 
-  return { success: true, data: result }
+  const { data: companies, error } = await query
+  if (error) return { success: false, error: error.message }
+
+  return { success: true, data: companies as CompanyWithRelations[] }
 }
 
 export async function getCompanyById(id: string) {

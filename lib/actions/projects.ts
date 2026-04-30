@@ -107,11 +107,14 @@ export async function deleteProject(id: string) {
   if (error) return { success: false, error: error.message }
 
   // Log deletion activity
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: `Proyecto eliminado: ${projectData?.name ?? 'Sin nombre'}`,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/projects')
   revalidatePath('/dashboard')

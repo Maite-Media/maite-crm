@@ -17,8 +17,13 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {
-            // Server Components... ignore
+          } catch (err) {
+            // The cookies API can throw when called in Server Components during rendering.
+            // This is expected behavior in Next.js — we silently ignore this specific case.
+            // All other errors would indicate a real problem.
+            if (process.env.NODE_ENV === 'development') {
+              console.error('[Supabase cookie set error]', err)
+            }
           }
         },
       },

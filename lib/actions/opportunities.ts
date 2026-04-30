@@ -100,12 +100,15 @@ export async function createOpportunity(data: {
     await addServicesToOpportunity(opp.id, service_ids)
   }
 
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'stage_change',
     description: 'Oportunidad creada',
     opportunity_id: opp.id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
@@ -196,12 +199,15 @@ export async function moveStage(id: string, newStageId: string) {
 
   if (error) return { success: false, error: error.message }
 
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'stage_change',
     description: `Etapa cambiada de "${oldStage?.name ?? 'Desconocida'}" a "${newStage?.name ?? 'Desconocida'}"`,
     opportunity_id: id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   // If moved to "Ganado" stage, create a project automatically
   if (newStage?.is_won) {
@@ -297,12 +303,15 @@ export async function deleteOpportunity(id: string) {
   if (error) return { success: false, error: error.message }
 
   // Log deletion activity
-  await supabase.from('activities').insert({
+  const { error: activityError } = await supabase.from('activities').insert({
     type: 'system',
     description: `Oportunidad eliminada: ${oppData?.title ?? 'Sin título'}`,
     opportunity_id: id,
     created_by: user.id
   })
+  if (activityError) {
+    console.error('[Activity log failed]', activityError)
+  }
 
   revalidatePath('/pipeline')
   revalidatePath('/dashboard')
