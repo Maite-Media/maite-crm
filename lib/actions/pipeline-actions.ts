@@ -108,6 +108,8 @@ export type WorkspaceOpportunitiesByStage = {
   error?: string
 }
 
+type WorkspaceStageSnapshot = Pick<PipelineStage, 'id' | 'name' | 'stage_key' | 'is_won' | 'is_lost' | 'is_active'>
+
 // ============================================
 // HELPERS
 // ============================================
@@ -265,6 +267,7 @@ export async function getWorkspacePipelineStages(): Promise<{
     .from('pipeline_stages')
     .select('*')
     .eq('workspace_id', workspace.id)
+    .eq('is_active', true)
     .order('position', { ascending: true })
 
   if (error) {
@@ -293,6 +296,7 @@ export async function getWorkspaceOpportunitiesByStage(): Promise<WorkspaceOppor
     .from('pipeline_stages')
     .select('*')
     .eq('workspace_id', workspace.id)
+    .eq('is_active', true)
     .order('position', { ascending: true })
 
   if (stagesError) {
@@ -404,61 +408,174 @@ export async function applyPipelineTemplateToCurrentWorkspace(
     stageKeySet.add(stage.stage_key)
   }
 
+  const cleanupInsertedStages = async (stageIds: string[]) => {
+    if (stageIds.length === 0) return
+    await adminClient
+      .from('pipeline_stages')
+      .delete()
+      .in('id', stageIds)
+  }
+
+  const deactivateStages = async (stageIds: string[]) => {
+    if (stageIds.length === 0) return { error: null }
+
+    return await adminClient
+      .from('pipeline_stages')
+      .update({ is_active: false })
+      .in('id', stageIds)
+  }
+
+  const cleanupOldStages = async (oldStageIds: string[]): Promise<{ success: true; mode: 'deleted' | 'deactivated' } | { success: false; error: string }> => {
+    if (oldStageIds.length === 0) {
+      return { success: true, mode: 'deleted' }
+    }
+
+    const { error: deleteError } = await adminClient
+      .from('pipeline_stages')
+      .delete()
+      .in('id', oldStageIds)
+
+    if (!deleteError) {
+      return { success: true, mode: 'deleted' }
+    }
+
+    const { error: deactivateError } = await deactivateStages(oldStageIds)
+    if (deactivateError) {
+      return {
+        success: false,
+        error: `No se pudieron limpiar etapas anteriores: ${deleteError.message}. También falló desactivarlas: ${deactivateError.message}`
+      }
+    }
+
+    return { success: true, mode: 'deactivated' }
+  }
+
   // Get current stages for this workspace
-  const { data: currentStages } = await supabase
+  const { data: currentStages, error: currentStagesError } = await supabase
     .from('pipeline_stages')
-    .select('id, name, is_won, is_lost')
+    .select('id, name, stage_key, is_won, is_lost, is_active')
     .eq('workspace_id', workspace.id)
 
-  if (!currentStages || currentStages.length === 0) {
-    // No existing stages - just insert new ones
-    const stageRows = templateStages.map((s) => ({
+  if (currentStagesError) {
+    return { success: false, code: 'LOAD_STAGES_ERROR', error: `No se pudieron cargar las etapas actuales: ${currentStagesError.message}` }
+  }
+
+  const workspaceStages = (currentStages ?? []) as WorkspaceStageSnapshot[]
+  const existingStageByKey = new Map(
+    workspaceStages
+      .filter((stage) => !!stage.stage_key)
+      .map((stage) => [stage.stage_key as string, stage])
+  )
+
+  const stagesToReuse = templateStages
+    .map((stage) => {
+      const existing = existingStageByKey.get(stage.stage_key)
+      if (!existing) return null
+      return { templateStage: stage, existingStage: existing }
+    })
+    .filter((item): item is { templateStage: PipelineTemplateStage; existingStage: WorkspaceStageSnapshot } => item !== null)
+
+  for (const { templateStage, existingStage } of stagesToReuse) {
+    const { error: updateError } = await adminClient
+      .from('pipeline_stages')
+      .update({
+        name: templateStage.name,
+        description: templateStage.description || null,
+        position: templateStage.position,
+        probability: templateStage.probability,
+        color: templateStage.color || '#6366f1',
+        is_won: templateStage.is_won ?? false,
+        is_lost: templateStage.is_lost ?? false,
+        is_default: templateStage.is_default ?? false,
+        is_active: true,
+        config_json: {},
+      })
+      .eq('id', existingStage.id)
+
+    if (updateError) {
+      return { success: false, code: 'UPDATE_ERROR', error: `No se pudo reutilizar la etapa '${templateStage.name}': ${updateError.message}` }
+    }
+  }
+
+  const stageRowsToInsert = templateStages
+    .filter((stage) => !existingStageByKey.has(stage.stage_key))
+    .map((stage) => ({
       workspace_id: workspace.id,
-      stage_key: s.stage_key,
-      name: s.name,
-      description: s.description || null,
-      position: s.position,
-      probability: s.probability,
-      color: s.color || '#6366f1',
-      is_won: s.is_won ?? false,
-      is_lost: s.is_lost ?? false,
-      is_default: s.is_default ?? false,
+      stage_key: stage.stage_key,
+      name: stage.name,
+      description: stage.description || null,
+      position: stage.position,
+      probability: stage.probability,
+      color: stage.color || '#6366f1',
+      is_won: stage.is_won ?? false,
+      is_lost: stage.is_lost ?? false,
+      is_default: stage.is_default ?? false,
       is_active: true,
       config_json: {},
     }))
 
-    const { error: insertError } = await adminClient
+  const { data: insertedStages, error: insertError } = stageRowsToInsert.length > 0
+    ? await adminClient
       .from('pipeline_stages')
-      .insert(stageRows)
+      .insert(stageRowsToInsert)
+      .select('id, stage_key, name, is_won, is_lost, is_default')
+    : { data: [], error: null }
 
-    if (insertError) {
-      return { success: false, code: 'INSERT_ERROR', error: insertError.message }
-    }
+  if (insertError) {
+    return { success: false, code: 'INSERT_ERROR', error: `Error inserting new stages: ${insertError.message}` }
+  }
 
-    // Update pipeline_settings.active_template_id
-    await adminClient
+  const targetStages = [
+    ...stagesToReuse.map(({ existingStage, templateStage }) => ({
+      id: existingStage.id,
+      stage_key: templateStage.stage_key,
+      name: templateStage.name,
+      is_won: templateStage.is_won ?? false,
+      is_lost: templateStage.is_lost ?? false,
+      is_default: templateStage.is_default ?? false,
+    })),
+    ...((insertedStages ?? []) as Array<{ id: string; stage_key: string; name: string; is_won: boolean; is_lost: boolean; is_default: boolean }>),
+  ]
+
+  if (targetStages.length !== templateStages.length) {
+    await cleanupInsertedStages((insertedStages ?? []).map((stage) => stage.id))
+    return { success: false, code: 'TARGET_STAGE_ERROR', error: 'No se pudieron materializar todas las etapas del template.' }
+  }
+
+  const targetStageIds = new Set(targetStages.map((stage) => stage.id))
+  const oldStages = workspaceStages.filter((stage) => !targetStageIds.has(stage.id))
+  const oldStageIds = oldStages.map((stage) => stage.id)
+
+  if (oldStageIds.length === 0) {
+    const { error: settingsError } = await adminClient
       .from('pipeline_settings')
       .update({ active_template_id: template.id })
       .eq('workspace_id', workspace.id)
+
+    if (settingsError) {
+      await cleanupInsertedStages((insertedStages ?? []).map((stage) => stage.id))
+      return { success: false, code: 'SETTINGS_ERROR', error: `No se pudo actualizar el template activo: ${settingsError.message}` }
+    }
 
     revalidatePath('/settings')
     revalidatePath('/pipeline')
     return { success: true }
   }
 
-  // Check for opportunities in current stages
-  const stageIds = currentStages.map(s => s.id)
+  // Check for opportunities in stages that will be replaced/deactivated
+  const stageIds = oldStageIds
   const { data: opportunitiesInStages } = await supabase
     .from('opportunities')
     .select('id, stage_id')
     .in('stage_id', stageIds)
+    .is('deleted_at', null)
 
   const opportunityCount = opportunitiesInStages?.length ?? 0
 
   // Group opportunities by stage
   const stageOppMap: Record<string, number> = {}
   const stageNameMap: Record<string, string> = {}
-  currentStages.forEach(s => {
+  oldStages.forEach(s => {
     stageOppMap[s.id] = 0
     stageNameMap[s.id] = s.name
   })
@@ -468,7 +585,7 @@ export async function applyPipelineTemplateToCurrentWorkspace(
     }
   })
 
-  const stagesWithOpportunities = currentStages
+  const stagesWithOpportunities = oldStages
     .map(s => ({
       stageId: s.id,
       stageName: s.name,
@@ -487,36 +604,6 @@ export async function applyPipelineTemplateToCurrentWorkspace(
     }
   }
 
-  // Build stage rows from template
-  const stageRows = templateStages.map((s) => ({
-    workspace_id: workspace.id,
-    stage_key: s.stage_key,
-    name: s.name,
-    description: s.description || null,
-    position: s.position,
-    probability: s.probability,
-    color: s.color || '#6366f1',
-    is_won: s.is_won ?? false,
-    is_lost: s.is_lost ?? false,
-    is_default: s.is_default ?? false,
-    is_active: true,
-    config_json: {},
-  }))
-
-  // Insert new stages first (before deleting old ones)
-  const { data: insertedStages, error: insertError } = await adminClient
-    .from('pipeline_stages')
-    .insert(stageRows)
-    .select('id, stage_key, name, is_won, is_lost, is_default')
-
-  if (insertError) {
-    return { success: false, code: 'INSERT_ERROR', error: `Error inserting new stages: ${insertError.message}` }
-  }
-
-  if (!insertedStages || insertedStages.length === 0) {
-    return { success: false, code: 'INSERT_ERROR', error: 'No stages were inserted' }
-  }
-
   // Find target stage for migration
   const strategy = options?.migrationStrategy ?? 'move_all_to_default'
 
@@ -525,36 +612,27 @@ export async function applyPipelineTemplateToCurrentWorkspace(
 
   if (strategy === 'move_all_to_default') {
     // Find the default stage (is_default=true) or first stage
-    const defaultStage = insertedStages.find(s => s.is_default) ?? insertedStages[0]
+    const defaultStage = targetStages.find(s => s.is_default) ?? targetStages[0]
     targetStageId = defaultStage.id
   } else if (strategy === 'preserve_won_lost') {
     // For preserve_won_lost, we keep stage_key mapping
     // won opportunities -> new is_won stage
     // lost opportunities -> new is_lost stage
     // all others -> default/first stage
-    targetStageId = (insertedStages.find(s => s.is_default) ?? insertedStages[0]).id
+    targetStageId = (targetStages.find(s => s.is_default) ?? targetStages[0]).id
   }
 
   if (opportunityCount > 0 && targetStageId) {
-    // Build old stage metadata for activity logging
-    const oldStageMeta = currentStages.reduce((acc, s) => {
-      acc[s.id] = s
-      return acc
-    }, {} as Record<string, { name: string; is_won: boolean; is_lost: boolean }>)
-
-    // Get old stage ids that will be replaced
-    const oldStageIds = currentStages.map(s => s.id)
-
     if (strategy === 'move_all_to_default') {
       // Move all opportunities to target stage
       const { error: moveError } = await adminClient
         .from('opportunities')
         .update({ stage_id: targetStageId })
         .in('stage_id', oldStageIds)
+        .is('deleted_at', null)
 
       if (moveError) {
-        // Rollback: delete inserted stages
-        await adminClient.from('pipeline_stages').delete().eq('workspace_id', workspace.id)
+        await cleanupInsertedStages(insertedStages.map((stage) => stage.id))
         return { success: false, code: 'MIGRATION_ERROR', error: `Error moving opportunities: ${moveError.message}` }
       }
 
@@ -566,10 +644,11 @@ export async function applyPipelineTemplateToCurrentWorkspace(
           .from('opportunities')
           .select('id')
           .eq('stage_id', targetStageId)
-          .in('stage_id', oldStageIds)
+          .in('id', opportunitiesInStages?.map((opp) => opp.id) ?? [])
+          .is('deleted_at', null)
 
         if (updatedOpps && updatedOpps.length > 0) {
-          const targetName = insertedStages.find(s => s.id === targetStageId)?.name ?? 'nueva etapa'
+          const targetName = targetStages.find(s => s.id === targetStageId)?.name ?? 'nueva etapa'
           const activityInserts = updatedOpps.map(opp => ({
             type: 'stage_change' as const,
             description: `Pipeline modificado - etapa migrada a "${targetName}" durante aplicación de template`,
@@ -581,12 +660,12 @@ export async function applyPipelineTemplateToCurrentWorkspace(
       }
     } else if (strategy === 'preserve_won_lost') {
       // Map old stage -> new stage based on is_won/is_lost
-      const wonNewStage = insertedStages.find(s => s.is_won)
-      const lostNewStage = insertedStages.find(s => s.is_lost)
-      const defaultNewStage = insertedStages.find(s => s.is_default) ?? insertedStages[0]
+      const wonNewStage = targetStages.find(s => s.is_won)
+      const lostNewStage = targetStages.find(s => s.is_lost)
+      const defaultNewStage = targetStages.find(s => s.is_default) ?? targetStages[0]
 
       // Group opportunities by their old stage's is_won/is_lost status
-      const stageIdToWonLost = currentStages.reduce((acc, s) => {
+      const stageIdToWonLost = oldStages.reduce((acc, s) => {
         acc[s.id] = { is_won: s.is_won, is_lost: s.is_lost }
         return acc
       }, {} as Record<string, { is_won: boolean; is_lost: boolean }>)
@@ -612,10 +691,10 @@ export async function applyPipelineTemplateToCurrentWorkspace(
           .from('opportunities')
           .update({ stage_id: newId })
           .eq('stage_id', oldId)
+          .is('deleted_at', null)
 
         if (moveError) {
-          // Rollback
-          await adminClient.from('pipeline_stages').delete().eq('workspace_id', workspace.id)
+          await cleanupInsertedStages(insertedStages.map((stage) => stage.id))
           return { success: false, code: 'MIGRATION_ERROR', error: `Error moving opportunities from "${stageNameMap[oldId]}": ${moveError.message}` }
         }
       }
@@ -627,10 +706,11 @@ export async function applyPipelineTemplateToCurrentWorkspace(
           .from('opportunities')
           .select('id, stage_id')
           .in('id', allMovedIds)
+          .is('deleted_at', null)
 
         if (allUpdatedOpps && allUpdatedOpps.length > 0) {
           const activityInserts = allUpdatedOpps.map(opp => {
-            const newStage = insertedStages.find(s => s.id === opp.stage_id)
+            const newStage = targetStages.find(s => s.id === opp.stage_id)
             const targetName = newStage?.name ?? 'nueva etapa'
             return {
               type: 'stage_change' as const,
@@ -645,16 +725,26 @@ export async function applyPipelineTemplateToCurrentWorkspace(
     }
   }
 
-  // Now delete old stages (opportunities are safe in new stages)
-  const { error: deleteError } = await adminClient
-    .from('pipeline_stages')
-    .delete()
-    .eq('workspace_id', workspace.id)
-    .not('id', 'in', (insertedStages as Array<{id: string}>).map(s => s.id))
+  const { count: remainingOpportunitiesOnOldStages, error: verificationError } = await adminClient
+    .from('opportunities')
+    .select('id', { count: 'exact', head: true })
+    .in('stage_id', oldStageIds)
+    .is('deleted_at', null)
 
-  if (deleteError) {
-    // Non-fatal - stages were inserted and opportunities migrated, old stages might be partially deleted
-    console.error('[applyPipelineTemplateToCurrentWorkspace] warning deleting old stages:', deleteError)
+  if (verificationError) {
+    await cleanupInsertedStages(insertedStages.map((stage) => stage.id))
+    return { success: false, code: 'VERIFICATION_ERROR', error: `No se pudo verificar la migración de oportunidades: ${verificationError.message}` }
+  }
+
+  if ((remainingOpportunitiesOnOldStages ?? 0) > 0) {
+    await cleanupInsertedStages(insertedStages.map((stage) => stage.id))
+    return { success: false, code: 'VERIFICATION_ERROR', error: `Todavía quedan ${(remainingOpportunitiesOnOldStages ?? 0)} oportunidades activas apuntando a etapas anteriores.` }
+  }
+
+  const cleanupResult = await cleanupOldStages(oldStageIds)
+  if (!cleanupResult.success) {
+    await cleanupInsertedStages(insertedStages.map((stage) => stage.id))
+    return { success: false, code: 'CLEANUP_ERROR', error: cleanupResult.error }
   }
 
   // Update pipeline_settings.active_template_id
@@ -664,7 +754,7 @@ export async function applyPipelineTemplateToCurrentWorkspace(
     .eq('workspace_id', workspace.id)
 
   if (settingsError) {
-    console.error('[applyPipelineTemplateToCurrentWorkspace] settings update error:', settingsError)
+    return { success: false, code: 'SETTINGS_ERROR', error: `No se pudo actualizar el template activo: ${settingsError.message}` }
   }
 
   revalidatePath('/settings')
