@@ -1,9 +1,13 @@
-import { NextResponse, NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   const supabase = await createClient()
-  await supabase.auth.signOut()
-  const origin = request.nextUrl.origin
-  return NextResponse.redirect(new URL('/login', origin))
+  const { error } = await supabase.auth.signOut()
+
+  if (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true, redirectTo: '/login' })
 }

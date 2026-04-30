@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -41,6 +41,33 @@ interface SidebarProps {
   } | null;
 }
 
+async function performLogout(router: ReturnType<typeof useRouter>, onBeforeNavigate?: () => void) {
+  let redirectTo = '/login';
+
+  try {
+    const res = await fetch('/api/auth/signout', {
+      method: 'POST',
+      credentials: 'same-origin',
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (data?.redirectTo) {
+      redirectTo = data.redirectTo;
+    }
+
+    if (!res.ok || !data?.success) {
+      console.error('Logout failed', data);
+    }
+  } catch (error) {
+    console.error('Logout error', error);
+  } finally {
+    onBeforeNavigate?.();
+    router.replace(redirectTo);
+    router.refresh();
+  }
+}
+
 function NavLink({ item, index, isActive, onClick }: { item: NavItem; index: number; isActive: boolean; onClick?: () => void }) {
   const Icon = item.icon;
   const num = String(index + 1).padStart(2, "0");
@@ -73,6 +100,11 @@ function NavLink({ item, index, isActive, onClick }: { item: NavItem; index: num
 
 function SidebarDesktop({ user }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await performLogout(router);
+  }
 
   return (
     <aside
@@ -140,11 +172,9 @@ function SidebarDesktop({ user }: SidebarProps) {
                 {user.role || "viewer"}
               </p>
             </div>
-            <form action="/api/auth/signout" method="post">
-              <button type="submit" className="text-zinc-700 hover:text-[#E31E24] transition-colors" title="Cerrar sesión">
+              <button onClick={handleLogout} type="button" className="text-zinc-700 hover:text-[#E31E24] transition-colors" title="Cerrar sesión">
                 <LogOut className="h-3.5 w-3.5" />
               </button>
-            </form>
           </div>
         </div>
       )}
@@ -154,13 +184,10 @@ function SidebarDesktop({ user }: SidebarProps) {
 
 function SidebarMobile({ user, open, onClose }: SidebarProps & { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
 
-  function handleLogout() {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/api/auth/signout';
-    document.body.appendChild(form);
-    form.submit();
+  async function handleLogout() {
+    await performLogout(router, onClose);
   }
 
   return (
