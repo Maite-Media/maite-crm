@@ -9,6 +9,7 @@ export async function registerWithInvitation(
   password: string
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient()
+  const adminClient = await createAdminClient()
 
   // Find the invitation by token
   const { data: invitation, error: invitationError } = await supabase
@@ -68,6 +69,25 @@ export async function registerWithInvitation(
     return { success: false, error: profileError.message }
   }
 
+  const workspaceId = invitation.workspace_id ?? await getInviterWorkspaceId(adminClient, invitation.invited_by)
+
+  if (!workspaceId) {
+    return { success: false, error: 'La invitación no tiene un workspace válido. Pedile al administrador que la vuelva a generar.' }
+  }
+
+  const { error: memberError } = await adminClient
+    .from('workspace_members')
+    .insert({
+      workspace_id: workspaceId,
+      user_id: authData.user.id,
+      role: invitation.role ?? 'member',
+    })
+
+  if (memberError) {
+    console.error('[registerWithInvitation] workspace_members insert error:', memberError)
+    return { success: false, error: 'Usuario creado pero no se pudo asociar al workspace. Contactá al administrador.' }
+  }
+
   // Mark invitation as accepted
   await supabase
     .from('invitations')
@@ -76,6 +96,27 @@ export async function registerWithInvitation(
 
   revalidatePath('/dashboard')
   return { success: true }
+}
+
+async function createAdminClient() {
+  const { createServiceClient } = await import('@/lib/supabase/server')
+  return createServiceClient()
+}
+
+async function getInviterWorkspaceId(adminClient: Awaited<ReturnType<typeof createAdminClient>>, invitedBy?: string | null) {
+  if (!invitedBy) return null
+
+  const { data: membership, error } = await adminClient
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', invitedBy)
+    .maybeSingle()
+
+  if (error || !membership?.workspace_id) {
+    return null
+  }
+
+  return membership.workspace_id
 }
 
 export async function getInvitationByToken(token: string) {

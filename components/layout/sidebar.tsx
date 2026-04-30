@@ -14,8 +14,6 @@ import {
   Menu,
 } from "lucide-react";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 interface NavItem {
@@ -156,13 +154,13 @@ function SidebarDesktop({ user }: SidebarProps) {
 
 function SidebarMobile({ user, open, onClose }: SidebarProps & { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const supabase = createClient();
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
+  function handleLogout() {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/auth/signout';
+    document.body.appendChild(form);
+    form.submit();
   }
 
   return (
