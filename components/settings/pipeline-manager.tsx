@@ -168,8 +168,11 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
     )
   }, [])
 
-  // Move stage up/down
-  const moveStage = useCallback((id: string, direction: 'up' | 'down') => {
+  // Move stage up/down with autosave
+  const moveStage = useCallback(async (id: string, direction: 'up' | 'down') => {
+    const previousStages = stages
+
+    // Apply the reorder locally first for immediate feedback
     setStages((prev) => {
       const idx = prev.findIndex((s) => s.id === id)
       if (idx === -1) return prev
@@ -181,7 +184,34 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
       newStages[targetIdx] = temp
       return newStages
     })
-  }, [])
+
+    // Build new order and save to server
+    setIsReordering(true)
+    const newOrder = stages.map((s) => s.id)
+    const idx = stages.findIndex((s) => s.id === id)
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (targetIdx < 0 || targetIdx >= newOrder.length) {
+      setIsReordering(false)
+      return
+    }
+
+    // Reorder the IDs array
+    const reordered = [...newOrder]
+    const [removed] = reordered.splice(idx, 1)
+    reordered.splice(targetIdx, 0, removed)
+
+    const result = await reorderPipelineStages(reordered)
+
+    if (!result.success) {
+      // Rollback on error
+      setStages(previousStages)
+      setError(result.error ?? 'Error al reordenar')
+      setIsReordering(false)
+      return
+    }
+
+    setIsReordering(false)
+  }, [stages])
 
   // Open add modal
   const openAddModal = () => {
@@ -493,7 +523,7 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
                 <div className="flex flex-col gap-0.5">
                   <button
                     onClick={() => moveStage(stage.id, 'up')}
-                    disabled={index === 0}
+                    disabled={index === 0 || isReordering}
                     className="p-0.5 rounded hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     title="Mover arriba"
                   >
@@ -501,7 +531,7 @@ export function PipelineManager({ initialStages }: PipelineManagerProps) {
                   </button>
                   <button
                     onClick={() => moveStage(stage.id, 'down')}
-                    disabled={index === stages.length - 1}
+                    disabled={index === stages.length - 1 || isReordering}
                     className="p-0.5 rounded hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     title="Mover abajo"
                   >
